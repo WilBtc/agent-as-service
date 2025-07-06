@@ -1,0 +1,39 @@
+# Agent as a Service Marketing Repository
+# This repository contains only marketing materials
+# All source code is proprietary and not included
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# NO SOURCE CODE IN THIS REPO
+*.py
+*.js
+*.go
+*.c
+*.cpp
+*.java
+*.rb
+*.php
+*.sh
+*.yml
+*.yaml
+*.json
+*.xml
+*.sql
+*.db
+
+# Except for specific allowed files
+!package.json
+!.github/workflows/*.yml
