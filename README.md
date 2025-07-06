@@ -252,24 +252,16 @@ All plans include:
 - 📹 [Video Tutorials](#) - Learn by Example
 - 📧 [Newsletter](#) - Latest Updates
 
-## 🚀 Roadmap
-
-### **Q1 2025** ✅
+## 🚀 
 - Platform launch
 - 50+ marketplace agents
 - Visual builder
-
-### **Q2 2025** 🔄
 - Voice-enabled agents
 - Mobile SDK
 - Advanced analytics
-
-### **Q3 2025** 📅
 - Edge deployment
 - Blockchain agents
 - AR/VR interfaces
-
-### **Q4 2025** 📅
 - Quantum-ready agents
 - Neural interfaces
 - Autonomous agent creation
