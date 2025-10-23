@@ -1,39 +1,82 @@
-# Agent as a Service Marketing Repository
-# This repository contains only marketing materials
-# All source code is proprietary and not included
+# Agent as a Service
+# Python-based agent service using Claude Code
 
-# OS files
-.DS_Store
-Thumbs.db
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-# Editor files
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+*.sublime-project
+*.sublime-workspace
 
-# Temporary files
+# OS files
+.DS_Store
+Thumbs.db
 *.tmp
 *.temp
+
+# Logs
 *.log
+logs/
+*.log.*
 
-# NO SOURCE CODE IN THIS REPO
-*.py
-*.js
-*.go
-*.c
-*.cpp
-*.java
-*.rb
-*.php
-*.sh
-*.yml
-*.yaml
-*.json
-*.xml
-*.sql
-*.db
+# Data directories
+data/
+/tmp/
 
-# Except for specific allowed files
-!package.json
-!.github/workflows/*.yml
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Type checking
+.pytype/
+
+# Jupyter
+.ipynb_checkpoints
+
+# Distribution
+*.tar.gz
+*.zip
