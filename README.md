@@ -168,20 +168,31 @@ CI/CD automation, code review, testing, deployment management
 
 ## 🚀 Getting Started
 
-### **1. Sign Up**
-Contact [@wilbtc on Telegram](https://t.me/wilbtc) to get started with your AaaS account.
+### Quick Installation
 
-### **2. Choose Your Agents**
-Select from our marketplace or build custom agents for your needs.
+```bash
+# Clone the repository
+git clone https://github.com/wilbtc/agent-as-service.git
+cd agent-as-service
 
-### **3. Deploy & Scale**
-Launch agents with one click and scale based on demand.
+# Install dependencies
+pip install -e .
+
+# Configure environment
+cp .env.example .env
+# Edit .env and add your ANTHROPIC_API_KEY
+
+# Start the server
+aaas serve
+```
+
+### **Using Python Client**
 
 ```python
 # Example: Deploy a Customer Service Agent
 from aaas import AgentClient
 
-client = AgentClient(api_key="your-api-key")
+client = AgentClient(base_url="http://localhost:8000")
 
 # Deploy agent from marketplace
 agent = client.deploy_agent(
@@ -195,6 +206,46 @@ agent = client.deploy_agent(
 
 print(f"Agent deployed: {agent.id}")
 print(f"Endpoint: {agent.endpoint}")
+
+# Send a message
+response = agent.send("Hello, I need help!")
+print(response)
+
+# Cleanup
+agent.delete()
+```
+
+### **Using REST API**
+
+```bash
+# Create an agent
+curl -X POST http://localhost:8000/api/v1/agents \
+  -H "Content-Type: application/json" \
+  -d '{
+    "config": {"template": "customer-service-pro"},
+    "auto_start": true
+  }'
+
+# Send a message
+curl -X POST http://localhost:8000/api/v1/agents/{agent_id}/messages \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Hello!"}'
+```
+
+### **Using CLI**
+
+```bash
+# Deploy an agent
+aaas deploy customer-service-pro
+
+# List agents
+aaas list
+
+# Send a message
+aaas send <agent-id> "Hello, how can you help?"
+
+# Delete an agent
+aaas delete <agent-id>
 ```
 
 ## 💰 Pricing Plans
@@ -244,13 +295,120 @@ All plans include:
 
 </div>
 
-## 📚 Resources
+## 🏗️ Technical Architecture
 
-- 📖 [Documentation](#) - Coming Soon
-- 🎓 [AaaS Academy](#) - Training & Certification
-- 💬 [Community](#) - User Forum
-- 📹 [Video Tutorials](#) - Learn by Example
-- 📧 [Newsletter](#) - Latest Updates
+### **Core Components**
+
+AaaS is built on a modern, scalable architecture:
+
+1. **Agent Manager** - Manages Claude Code subprocess instances
+2. **REST API** - FastAPI-based API for agent control
+3. **Python Client** - Easy-to-use client library
+4. **CLI Tool** - Command-line interface for operations
+
+### **How It Works**
+
+```
+┌─────────────┐      ┌──────────────┐      ┌─────────────────┐
+│   Client    │─────▶│   AaaS API   │─────▶│ Agent Manager   │
+│  (Python)   │      │  (FastAPI)   │      │  (AsyncIO)      │
+└─────────────┘      └──────────────┘      └─────────────────┘
+                                                     │
+                                                     ▼
+                                          ┌──────────────────┐
+                                          │  Claude Code     │
+                                          │  Subprocesses    │
+                                          │  (Multiple)      │
+                                          └──────────────────┘
+```
+
+### **Key Features Implementation**
+
+- **Subprocess Management**: Each agent runs as an isolated Claude Code subprocess
+- **Async I/O**: Asynchronous communication for high performance
+- **Process Pooling**: Efficient resource utilization across agents
+- **Lifecycle Management**: Full control over agent start, stop, and restart
+- **Message Queue**: Robust message handling with timeout support
+
+### **Project Structure**
+
+```
+agent-as-service/
+├── src/aaas/
+│   ├── __init__.py          # Package exports
+│   ├── agent_manager.py     # Core agent management
+│   ├── api.py              # FastAPI REST API
+│   ├── client.py           # Python client library
+│   ├── cli.py              # Command-line interface
+│   ├── config.py           # Configuration management
+│   ├── models.py           # Pydantic data models
+│   └── server.py           # Server startup
+├── tests/                  # Test suite
+├── examples/               # Usage examples
+├── docs/                   # Documentation
+├── Dockerfile             # Container image
+├── docker-compose.yml     # Docker orchestration
+└── pyproject.toml        # Project metadata
+```
+
+## 📚 Documentation
+
+- 📖 [Quick Start Guide](docs/QUICKSTART.md) - Get started in 5 minutes
+- 🔧 [API Documentation](docs/API.md) - Complete API reference
+- 🚀 [Deployment Guide](docs/DEPLOYMENT.md) - Production deployment
+- 📋 [FAQ](docs/FAQ.md) - Frequently asked questions
+- ⚡ [Features](docs/FEATURES.md) - Detailed feature list
+- 💡 [Examples](examples/) - Code examples
+- 📹 [Interactive API Docs](http://localhost:8000/docs) - When server is running
+
+## 🔧 Configuration
+
+AaaS can be configured through environment variables:
+
+```bash
+# API Configuration
+HOST=0.0.0.0
+PORT=8000
+
+# Claude Code Configuration
+CLAUDE_CODE_PATH=claude
+ANTHROPIC_API_KEY=your-api-key
+CLAUDE_MODEL=claude-sonnet-4-5-20250929
+
+# Agent Configuration
+MAX_AGENTS=100
+AGENT_TIMEOUT=3600
+DEFAULT_WORKING_DIR=/tmp/aaas-agents
+
+# Logging
+LOG_LEVEL=INFO
+```
+
+See `.env.example` for all configuration options.
+
+## 🐳 Docker Deployment
+
+```bash
+# Build and run with Docker Compose
+docker-compose up -d
+
+# Or build manually
+docker build -t aaas:latest .
+docker run -p 8000:8000 -e ANTHROPIC_API_KEY=your-key aaas:latest
+```
+
+## 🧪 Testing
+
+```bash
+# Install dev dependencies
+pip install -e ".[dev]"
+
+# Run tests
+pytest
+
+# Run with coverage
+pytest --cov=aaas tests/
+```
 
 ## 🚀 
 - Platform launch
