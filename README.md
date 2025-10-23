@@ -271,17 +271,6 @@ All plans include:
 - **End-to-end encryption**
 - **Private cloud options**
 
-## 🌟 Success Stories
-
-> "AaaS reduced our customer response time by 90% while cutting support costs in half."  
-> — **VP Operations, Fortune 500 Retailer**
-
-> "We deployed 50 specialized agents in a week. What used to take months now takes hours."  
-> — **CTO, Leading FinTech**
-
-> "The ROI was immediate. Our agents handle 80% of routine tasks, freeing our team for strategic work."  
-> — **Director of Innovation, Global Manufacturer**
-
 ## 🤝 Technology Partners
 
 <div align="center">
