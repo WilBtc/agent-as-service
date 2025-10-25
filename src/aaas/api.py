@@ -7,11 +7,15 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Dict, List
 
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI, HTTPException, Depends, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from .agent_manager import get_agent_manager, AgentManager
+from .auth import verify_api_key, verify_api_key_optional
 from .config import get_settings, init_directories, settings
 from .models import (
     AgentInfo,
@@ -33,11 +37,17 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+# Configure rate limiter
+limiter = Limiter(key_func=get_remote_address, enabled=settings.rate_limit_enabled)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager"""
     # Startup
     logger.info("Starting Agent as a Service")
+    logger.info(f"Rate limiting: {'enabled' if settings.rate_limit_enabled else 'disabled'}")
+    logger.info(f"API authentication: {'enabled' if settings.require_api_key else 'disabled'}")
     init_directories()
     yield
     # Shutdown
@@ -50,9 +60,13 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Agent as a Service (AaaS)",
     description="Enterprise AI Agent Platform - Deploy and manage Claude Code agents at scale",
-    version="1.0.0",
+    version="2.0.0",
     lifespan=lifespan,
 )
+
+# Add rate limiter to app state
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Add CORS middleware
 app.add_middleware(
@@ -92,14 +106,19 @@ async def health_check():
     response_model=CreateAgentResponse,
     status_code=status.HTTP_201_CREATED,
 )
+@limiter.limit(f"{settings.rate_limit_agent_creation}/minute")
 async def create_agent(
-    request: CreateAgentRequest,
+    request: Request,
+    create_request: CreateAgentRequest,
     manager: AgentManager = Depends(get_agent_manager),
+    api_key: str = Depends(verify_api_key),
 ):
-    """Create a new agent instance"""
+    """Create a new agent instance (Protected: requires API key, rate limited)"""
     try:
-        agent_id = await manager.create_agent(request.config, request.auto_start)
+        agent_id = await manager.create_agent(create_request.config, create_request.auto_start)
         agent = await manager.get_agent(agent_id)
+
+        logger.info(f"Agent created: {agent_id} (API key: {api_key[:8] if api_key != 'disabled' else 'disabled'}...)")
 
         return CreateAgentResponse(
             agent_id=agent_id,
@@ -119,8 +138,13 @@ async def create_agent(
 
 
 @app.get(f"{settings.api_prefix}/agents", response_model=Dict[str, AgentInfo])
-async def list_agents(manager: AgentManager = Depends(get_agent_manager)):
-    """List all agent instances"""
+@limiter.limit(f"{settings.rate_limit_per_minute}/minute")
+async def list_agents(
+    request: Request,
+    manager: AgentManager = Depends(get_agent_manager),
+    api_key: str = Depends(verify_api_key),
+):
+    """List all agent instances (Protected: requires API key, rate limited)"""
     try:
         agents = await manager.list_agents()
         return agents
@@ -133,8 +157,14 @@ async def list_agents(manager: AgentManager = Depends(get_agent_manager)):
 
 
 @app.get(f"{settings.api_prefix}/agents/{{agent_id}}", response_model=AgentInfo)
-async def get_agent(agent_id: str, manager: AgentManager = Depends(get_agent_manager)):
-    """Get information about a specific agent"""
+@limiter.limit(f"{settings.rate_limit_per_minute}/minute")
+async def get_agent(
+    request: Request,
+    agent_id: str,
+    manager: AgentManager = Depends(get_agent_manager),
+    api_key: str = Depends(verify_api_key),
+):
+    """Get information about a specific agent (Protected: requires API key, rate limited)"""
     agent = await manager.get_agent(agent_id)
     if not agent:
         raise HTTPException(
@@ -146,12 +176,15 @@ async def get_agent(agent_id: str, manager: AgentManager = Depends(get_agent_man
 
 
 @app.post(f"{settings.api_prefix}/agents/{{agent_id}}/messages", response_model=AgentResponse)
+@limiter.limit(f"{settings.rate_limit_per_minute}/minute")
 async def send_message(
+    request: Request,
     agent_id: str,
-    request: MessageRequest,
+    message_request: MessageRequest,
     manager: AgentManager = Depends(get_agent_manager),
+    api_key: str = Depends(verify_api_key),
 ):
-    """Send a message to an agent"""
+    """Send a message to an agent (Protected: requires API key, rate limited)"""
     agent = await manager.get_agent(agent_id)
     if not agent:
         raise HTTPException(
@@ -166,7 +199,7 @@ async def send_message(
         )
 
     try:
-        response = await agent.send_message(request.message, request.context)
+        response = await agent.send_message(message_request.message, message_request.context)
         return AgentResponse(
             agent_id=agent_id,
             response=response,
@@ -182,8 +215,14 @@ async def send_message(
 
 
 @app.post(f"{settings.api_prefix}/agents/{{agent_id}}/start")
-async def start_agent(agent_id: str, manager: AgentManager = Depends(get_agent_manager)):
-    """Start an agent"""
+@limiter.limit(f"{settings.rate_limit_per_minute}/minute")
+async def start_agent(
+    request: Request,
+    agent_id: str,
+    manager: AgentManager = Depends(get_agent_manager),
+    api_key: str = Depends(verify_api_key),
+):
+    """Start an agent (Protected: requires API key, rate limited)"""
     agent = await manager.get_agent(agent_id)
     if not agent:
         raise HTTPException(
@@ -209,8 +248,14 @@ async def start_agent(agent_id: str, manager: AgentManager = Depends(get_agent_m
 
 
 @app.post(f"{settings.api_prefix}/agents/{{agent_id}}/stop")
-async def stop_agent(agent_id: str, manager: AgentManager = Depends(get_agent_manager)):
-    """Stop an agent"""
+@limiter.limit(f"{settings.rate_limit_per_minute}/minute")
+async def stop_agent(
+    request: Request,
+    agent_id: str,
+    manager: AgentManager = Depends(get_agent_manager),
+    api_key: str = Depends(verify_api_key),
+):
+    """Stop an agent (Protected: requires API key, rate limited)"""
     agent = await manager.get_agent(agent_id)
     if not agent:
         raise HTTPException(
@@ -236,8 +281,14 @@ async def stop_agent(agent_id: str, manager: AgentManager = Depends(get_agent_ma
 
 
 @app.delete(f"{settings.api_prefix}/agents/{{agent_id}}")
-async def delete_agent(agent_id: str, manager: AgentManager = Depends(get_agent_manager)):
-    """Delete an agent"""
+@limiter.limit(f"{settings.rate_limit_per_minute}/minute")
+async def delete_agent(
+    request: Request,
+    agent_id: str,
+    manager: AgentManager = Depends(get_agent_manager),
+    api_key: str = Depends(verify_api_key),
+):
+    """Delete an agent (Protected: requires API key, rate limited)"""
     success = await manager.delete_agent(agent_id)
     if not success:
         raise HTTPException(
@@ -249,8 +300,12 @@ async def delete_agent(agent_id: str, manager: AgentManager = Depends(get_agent_
 
 
 @app.get(f"{settings.api_prefix}/agent-types")
-async def list_agent_types():
-    """List all available agent types and their configurations"""
+@limiter.limit(f"{settings.rate_limit_per_minute}/minute")
+async def list_agent_types(
+    request: Request,
+    api_key: str = Depends(verify_api_key_optional),
+):
+    """List all available agent types and their configurations (Optional auth, rate limited)"""
     agent_types_info = {}
     for agent_type in AgentType:
         config = AGENT_TYPE_CONFIGS.get(agent_type, {})
@@ -264,17 +319,21 @@ async def list_agent_types():
 
 
 @app.post(f"{settings.api_prefix}/query", response_model=AgentResponse)
+@limiter.limit("20/minute")  # Lower limit for resource-intensive queries
 async def quick_query(
-    request: MessageRequest,
+    request: Request,
+    message_request: MessageRequest,
     agent_type: AgentType = AgentType.GENERAL,
     manager: AgentManager = Depends(get_agent_manager),
+    api_key: str = Depends(verify_api_key),
 ):
     """
     Quick query endpoint - creates a temporary agent, sends message, and returns response.
     This is useful for one-off queries without needing to manage agent lifecycle.
+    (Protected: requires API key, rate limited to 20/min)
     """
     try:
-        response = await manager.query_agent(request.message, agent_type)
+        response = await manager.query_agent(message_request.message, agent_type)
         return AgentResponse(
             agent_id="quick-query",
             response=response,

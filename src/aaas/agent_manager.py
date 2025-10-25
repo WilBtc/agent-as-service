@@ -11,8 +11,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Optional, List, Any
 
-from claude_agent_sdk import ClaudeSDKClient, query
-from claude_agent_sdk.models import ClaudeAgentOptions, AssistantMessage, UserMessage
+# FIXED: Correct imports for Claude Agent SDK
+from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions, query
 
 from .config import settings
 from .models import (
@@ -42,6 +42,7 @@ class ClaudeAgent:
         )
         self.messages_count = 0
         self._conversation_history: List[Any] = []
+        self._client_task: Optional[asyncio.Task] = None
 
     async def start(self) -> bool:
         """Start the Claude Agent"""
@@ -57,30 +58,34 @@ class ClaudeAgent:
                 self.config.agent_type, self.config
             )
 
-            # Prepare environment
-            env = os.environ.copy()
+            # FIXED: Set API key via environment variable (SDK requirement)
             if settings.claude_api_key:
-                env["ANTHROPIC_API_KEY"] = settings.claude_api_key
+                os.environ["ANTHROPIC_API_KEY"] = settings.claude_api_key
 
             # Add custom environment variables
             if self.config.environment:
-                env.update(self.config.environment)
+                for key, value in self.config.environment.items():
+                    os.environ[key] = value
 
-            # Build Claude Agent Options
+            # FIXED: Convert permission mode enum to string
+            permission_mode_str = agent_type_config.get("permission_mode")
+            if isinstance(permission_mode_str, PermissionMode):
+                permission_mode_str = permission_mode_str.value
+
+            # FIXED: Build Claude Agent Options (removed model parameter)
             agent_options = ClaudeAgentOptions(
                 cwd=self.working_dir,
                 system_prompt=agent_type_config.get("system_prompt"),
                 allowed_tools=agent_type_config.get("allowed_tools"),
-                permission_mode=agent_type_config.get("permission_mode").value,
+                permission_mode=permission_mode_str,
                 max_turns=self.config.max_turns,
-                model=self.config.model or settings.claude_model,
             )
 
-            # Initialize Claude SDK Client
-            self.client = ClaudeSDKClient(
-                api_key=settings.claude_api_key,
-                options=agent_options,
-            )
+            # FIXED: Initialize Claude SDK Client without api_key parameter
+            # Using context manager pattern as recommended
+            self.client = ClaudeSDKClient(options=agent_options)
+
+            # Note: Client initialization happens, but we enter context when sending messages
 
             self.status = AgentStatus.RUNNING
             logger.info(f"Agent {self.agent_id} started successfully")
@@ -97,8 +102,15 @@ class ClaudeAgent:
             if self.client:
                 logger.info(f"Stopping agent {self.agent_id}")
 
+                # Cancel any ongoing tasks
+                if self._client_task and not self._client_task.done():
+                    self._client_task.cancel()
+                    try:
+                        await self._client_task
+                    except asyncio.CancelledError:
+                        pass
+
                 # Cleanup client resources
-                await self.client.close()
                 self.client = None
 
                 self.status = AgentStatus.STOPPED
@@ -119,23 +131,28 @@ class ClaudeAgent:
         try:
             logger.info(f"Sending message to agent {self.agent_id}: {message[:100]}...")
 
-            # Create user message
-            user_message = UserMessage(content=message)
-
-            # Add context if provided
+            # Prepend context if provided
             if context:
-                # You can optionally prepend context to the message
                 context_str = "\n".join([f"{k}: {v}" for k, v in context.items()])
-                user_message = UserMessage(content=f"Context:\n{context_str}\n\nMessage: {message}")
+                full_message = f"Context:\n{context_str}\n\nMessage: {message}"
+            else:
+                full_message = message
 
-            # Send message and get response
-            response_messages = []
-            async for response_message in self.client.send_message(user_message):
-                response_messages.append(response_message)
-                logger.debug(f"Agent {self.agent_id} response chunk: {response_message}")
+            # FIXED: Use correct SDK API pattern
+            # Use context manager for each interaction
+            response_text = ""
 
-            # Extract text content from response messages
-            response_text = self._extract_text_from_messages(response_messages)
+            async with self.client as client:
+                # Send query
+                await client.query(full_message)
+
+                # Receive response
+                async for response_message in client.receive_response():
+                    # Extract text from response
+                    text = self._extract_text_from_message(response_message)
+                    if text:
+                        response_text += text
+                        logger.debug(f"Agent {self.agent_id} response chunk: {text[:100]}...")
 
             self.messages_count += 1
             self._conversation_history.append({
@@ -145,7 +162,7 @@ class ClaudeAgent:
             })
 
             logger.info(f"Agent {self.agent_id} responded successfully")
-            return response_text
+            return response_text if response_text else "No response received"
 
         except asyncio.TimeoutError:
             logger.error(f"Timeout waiting for response from agent {self.agent_id}")
@@ -154,25 +171,38 @@ class ClaudeAgent:
             logger.error(f"Error sending message to agent {self.agent_id}: {e}", exc_info=True)
             raise
 
-    def _extract_text_from_messages(self, messages: List[Any]) -> str:
-        """Extract text content from response messages"""
-        text_parts = []
-        for message in messages:
-            if isinstance(message, AssistantMessage):
-                # Extract text from assistant message
-                if hasattr(message, 'content'):
-                    if isinstance(message.content, str):
-                        text_parts.append(message.content)
-                    elif isinstance(message.content, list):
-                        for content_block in message.content:
-                            if hasattr(content_block, 'text'):
-                                text_parts.append(content_block.text)
-                            elif isinstance(content_block, dict) and 'text' in content_block:
-                                text_parts.append(content_block['text'])
-            elif isinstance(message, dict) and 'content' in message:
-                text_parts.append(str(message['content']))
+    def _extract_text_from_message(self, message: Any) -> str:
+        """Extract text content from a response message"""
+        try:
+            # Handle different message types
+            if hasattr(message, 'content'):
+                content = message.content
 
-        return "\n".join(text_parts) if text_parts else "No response received"
+                # String content
+                if isinstance(content, str):
+                    return content
+
+                # List of content blocks
+                elif isinstance(content, list):
+                    text_parts = []
+                    for block in content:
+                        if hasattr(block, 'text'):
+                            text_parts.append(block.text)
+                        elif isinstance(block, dict) and 'text' in block:
+                            text_parts.append(block['text'])
+                        elif hasattr(block, 'type') and block.type == 'text':
+                            if hasattr(block, 'text'):
+                                text_parts.append(block.text)
+
+                    if text_parts:
+                        return "\n".join(text_parts)
+
+            # Fallback to string representation
+            return str(message)
+
+        except Exception as e:
+            logger.warning(f"Error extracting text from message: {e}")
+            return str(message)
 
     def get_info(self) -> AgentInfo:
         """Get agent information"""
@@ -267,11 +297,15 @@ class AgentManager:
             # Get agent type configuration
             agent_type_config = get_agent_config_for_type(agent_type)
 
+            # Set API key via environment
+            if settings.claude_api_key:
+                os.environ["ANTHROPIC_API_KEY"] = settings.claude_api_key
+
             # Use SDK's query function for simple one-off queries
             response_text = ""
             async for message in query(prompt=prompt):
-                if hasattr(message, 'content'):
-                    response_text += str(message.content)
+                text = str(message)
+                response_text += text
 
             return response_text if response_text else "No response received"
 
