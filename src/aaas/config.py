@@ -32,7 +32,14 @@ class Settings(BaseSettings):
 
     # Security
     api_key_header: str = "X-API-Key"
+    api_key: Optional[str] = None  # API key for authentication (set via AAAS_API_KEY env var)
+    require_api_key: bool = False  # Set to True to enable API key authentication
     allowed_origins: list = ["*"]
+
+    # Rate Limiting
+    rate_limit_enabled: bool = True
+    rate_limit_per_minute: int = 60  # Max requests per minute per IP
+    rate_limit_agent_creation: int = 10  # Max agent creations per minute
 
     # Logging
     log_level: str = "INFO"
