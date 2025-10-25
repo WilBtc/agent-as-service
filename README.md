@@ -6,11 +6,22 @@
 [![Python](https://img.shields.io/badge/python-3.10+-blue)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green)](https://fastapi.tiangolo.com/)
 [![Claude SDK](https://img.shields.io/badge/Claude%20Agent%20SDK-latest-purple)](https://docs.anthropic.com/)
-[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![License](https://img.shields.io/badge/license-Proprietary-red)](LICENSE)
 
 **A RESTful API platform for deploying and managing Claude AI agents at scale**
 
 [Quick Start](#-quick-start) • [Documentation](#-documentation) • [API Reference](#-api-reference) • [Examples](#-examples) • [Contact](#-contact)
+
+---
+
+### ⚠️ PROPRIETARY SOFTWARE NOTICE
+
+**This is closed-source, proprietary software owned by WilBtc.**
+
+- 🔒 **Licensed Use Only** - Authorization required for all use
+- 💼 **Commercial Software** - Contact for licensing terms
+- ❌ **Not Open Source** - No unauthorized copying or distribution
+- 📞 **Get Access**: [@wilbtc on Telegram](https://t.me/wilbtc)
 
 </div>
 
@@ -75,12 +86,15 @@ AaaS provides 8 pre-configured agent types, each optimized for specific tasks:
 
 ## 🚀 Quick Start
 
-### Option 1: Hosted Service
+> **⚠️ IMPORTANT**: This is proprietary software. Access is restricted to authorized users only.
+> Contact [@wilbtc](https://t.me/wilbtc) for licensing and access.
 
-Use our hosted AaaS instance without managing infrastructure:
+### Option 1: Hosted Service (Recommended)
+
+For authorized customers, use our managed AaaS instance:
 
 ```bash
-# Install client library
+# Install client library (requires authorized access)
 pip install aaas-client
 ```
 
@@ -90,7 +104,7 @@ from aaas import AgentClient, AgentType
 # Connect to hosted service
 client = AgentClient(
     base_url="https://api.aaas.example.com",
-    api_key="your-api-key"  # Contact for API key
+    api_key="your-api-key"  # Provided upon licensing
 )
 
 # Create and use a research agent
@@ -102,20 +116,22 @@ print(response)
 client.delete_agent(agent_id)
 ```
 
-**Get API Key**: [Contact us](https://t.me/wilbtc) for hosted service access
+**Get Licensed Access**: [Contact @wilbtc](https://t.me/wilbtc) for pricing and licensing
 
 📚 **[View Hosted Service Guide →](docs/HOSTED_SERVICE.md)**
 
 ---
 
-### Option 2: Self-Hosted Installation
+### Option 2: Licensed Self-Hosted Deployment
 
-Deploy AaaS on your own infrastructure:
+For authorized licensees deploying on their own infrastructure:
 
 #### 1. Installation
 
+> **Note**: Repository access requires a valid license. Contact [@wilbtc](https://t.me/wilbtc) for licensing.
+
 ```bash
-# Clone the repository
+# Clone the repository (requires authorized access)
 git clone https://github.com/wilbtc/agent-as-service.git
 cd agent-as-service
 
@@ -468,10 +484,12 @@ Check the `examples/` directory for more detailed usage examples:
 
 ## 🛠️ Development
 
+> **For Authorized Developers Only**: Development access requires a valid license agreement.
+
 ### Setup Development Environment
 
 ```bash
-# Clone repository
+# Clone repository (authorized access required)
 git clone https://github.com/wilbtc/agent-as-service.git
 cd agent-as-service
 
@@ -491,13 +509,12 @@ uvicorn aaas.api:app --reload
 
 ### Contributing
 
-We welcome contributions! Please:
+This is proprietary software. Contributions are accepted only from:
+- Licensed customers
+- Authorized development partners
+- WilBtc team members
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes with tests
-4. Run the test suite
-5. Submit a pull request
+For collaboration inquiries, contact [@wilbtc](https://t.me/wilbtc)
 
 ## 🔒 Security
 
@@ -609,9 +626,25 @@ For:
 
 ## 📄 License
 
+**Proprietary Software - All Rights Reserved**
+
 Copyright © 2025 WilBtc
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This is proprietary, closed-source software. All rights reserved.
+
+**Restrictions:**
+- ❌ No unauthorized use, copying, or distribution
+- ❌ No modification or derivative works without license
+- ❌ No reverse engineering or decompilation
+- ❌ No public redistribution or sharing
+- ✅ Use permitted only under valid license agreement
+
+**To obtain a license:**
+- Contact [@wilbtc](https://t.me/wilbtc) for licensing terms
+- Commercial licenses available
+- Custom enterprise agreements available
+
+Unauthorized use is strictly prohibited and may result in legal action.
 
 ## 🙏 Acknowledgments
 
@@ -628,8 +661,14 @@ Built with:
 **Agent as a Service (AaaS)**
 *Professional AI Agent Orchestration*
 
-Made with ❤️ by [WilBtc](https://github.com/wilbtc)
+**© 2025 WilBtc. All Rights Reserved.**
 
-[⭐ Star on GitHub](https://github.com/wilbtc/agent-as-service) • [🐛 Report Bug](https://github.com/wilbtc/agent-as-service/issues) • [💡 Request Feature](https://github.com/wilbtc/agent-as-service/issues)
+**Proprietary Software - Licensed Use Only**
+
+---
+
+**Contact for Licensing**: [@wilbtc](https://t.me/wilbtc)
+
+Unauthorized use, reproduction, or distribution is strictly prohibited.
 
 </div>
