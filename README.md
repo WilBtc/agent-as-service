@@ -6,7 +6,7 @@
 
 **Enterprise AI Agent Platform**
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue)](https://github.com/wilbtc/agent-as-service)
+[![Version](https://img.shields.io/badge/version-2.0.0-blue)](https://github.com/wilbtc/agent-as-service)
 [![Framework](https://img.shields.io/badge/framework-Multi--Agent-green)](https://github.com/wilbtc/agent-as-service)
 [![Developer](https://img.shields.io/badge/developer-WilBtc-orange)](https://github.com/wilbtc)
 [![Status](https://img.shields.io/badge/status-production%20ready-green)](https://github.com/wilbtc/agent-as-service)
@@ -14,7 +14,17 @@
 
 **🚀 Deploy AI Agents at Scale**
 
-[Request Demo](https://t.me/wilbtc) | [Documentation](#documentation) | [Contact on Telegram](https://t.me/wilbtc)
+[Get API Key - Hosted](https://t.me/wilbtc) | [Quick Start](docs/HOSTED_SERVICE.md) | [Self-Hosted](#-option-2-self-hosted) | [Contact](https://t.me/wilbtc)
+
+---
+
+**✨ NEW: Hosted Service Now Available!**
+
+Zero infrastructure setup required. Get started in 2 minutes:
+```bash
+pip install aaas-client
+```
+[View Hosted Service Guide →](docs/HOSTED_SERVICE.md)
 
 </div>
 
@@ -168,7 +178,48 @@ CI/CD automation, code review, testing, deployment management
 
 ## 🚀 Getting Started
 
-### Quick Installation
+Choose your deployment option:
+
+### 🌟 Option 1: Hosted Service (Recommended)
+
+**Zero setup, instant access** - Let us handle the infrastructure!
+
+```bash
+# Install client library
+pip install aaas-client
+```
+
+```python
+from aaas import AgentClient, AgentType
+
+# Connect to hosted service
+client = AgentClient(
+    base_url="https://api.aaas.wilbtc.com",
+    api_key="your-api-key"
+)
+
+# Deploy and use an agent instantly
+agent = client.deploy_agent(agent_type=AgentType.RESEARCH)
+response = agent.send("Research AI agent trends")
+agent.delete()
+```
+
+**Get your API key:** Contact [@wilbtc](https://t.me/wilbtc) on Telegram
+
+**Benefits:**
+- ✅ No infrastructure management
+- ✅ Auto-scaling
+- ✅ 99.9% uptime SLA
+- ✅ 24/7 support
+- ✅ Free tier: 100 agent-hours/month
+
+📚 **[View Hosted Service Guide](docs/HOSTED_SERVICE.md)**
+
+---
+
+### 🏠 Option 2: Self-Hosted
+
+**Full control** - Deploy on your own infrastructure:
 
 ```bash
 # Clone the repository

@@ -1,0 +1,18 @@
+# MANIFEST for aaas-client package (hosted service client only)
+
+include CLIENT_README.md
+include LICENSE
+include CHANGELOG.md
+
+# Include client documentation
+recursive-include docs HOSTED_SERVICE.md
+
+# Include client example
+recursive-include examples hosted_service_example.py
+
+# Exclude server-only files
+exclude .env.example
+exclude Dockerfile
+exclude docker-compose.yml
+exclude setup-client.py
+prune tests
