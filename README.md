@@ -1,188 +1,83 @@
-# Agent as a Service (AaaS) Platform
+# Agent as a Service (AaaS)
 
 <div align="center">
-
-![AaaS Logo](https://img.shields.io/badge/AaaS-Agent%20as%20a%20Service-blue?style=for-the-badge&logo=robot&logoColor=white)
-
-**Enterprise AI Agent Platform**
 
 [![Version](https://img.shields.io/badge/version-2.0.0-blue)](https://github.com/wilbtc/agent-as-service)
-[![Framework](https://img.shields.io/badge/framework-Multi--Agent-green)](https://github.com/wilbtc/agent-as-service)
-[![Developer](https://img.shields.io/badge/developer-WilBtc-orange)](https://github.com/wilbtc)
-[![Status](https://img.shields.io/badge/status-production%20ready-green)](https://github.com/wilbtc/agent-as-service)
-[![License](https://img.shields.io/badge/license-proprietary-purple)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.10+-blue)](https://www.python.org/downloads/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green)](https://fastapi.tiangolo.com/)
+[![Claude SDK](https://img.shields.io/badge/Claude%20Agent%20SDK-latest-purple)](https://docs.anthropic.com/)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-**🚀 Deploy AI Agents at Scale**
+**A RESTful API platform for deploying and managing Claude AI agents at scale**
 
-[Get API Key - Hosted](https://t.me/wilbtc) | [Quick Start](docs/HOSTED_SERVICE.md) | [Self-Hosted](#-option-2-self-hosted) | [Contact](https://t.me/wilbtc)
-
----
-
-**✨ NEW: Hosted Service Now Available!**
-
-Zero infrastructure setup required. Get started in 2 minutes:
-```bash
-pip install aaas-client
-```
-[View Hosted Service Guide →](docs/HOSTED_SERVICE.md)
+[Quick Start](#-quick-start) • [Documentation](#-documentation) • [API Reference](#-api-reference) • [Examples](#-examples) • [Contact](#-contact)
 
 </div>
 
 ---
 
-## 🎯 Revolutionizing AI Agent Deployment
+## 🎯 Overview
 
-**Agent as a Service (AaaS)** is an enterprise-grade platform that enables organizations to deploy, manage, and scale AI agents with unprecedented ease. Built by WilBtc, AaaS transforms how businesses leverage AI automation by providing a comprehensive infrastructure for multi-agent systems.
+Agent as a Service (AaaS) is a production-ready platform that provides a RESTful API for deploying, managing, and orchestrating multiple Claude AI agents. Built on the official Claude Agent SDK and FastAPI, it enables developers to integrate powerful AI agents into their applications with minimal setup.
 
-### 🌟 Why AaaS?
+### What is AaaS?
 
-- **🤖 Multi-Agent Orchestration** - Deploy and manage multiple AI agents seamlessly
-- **☁️ Cloud-Native Architecture** - Scale from one to thousands of agents
-- **🔧 No-Code Agent Builder** - Create custom agents without programming
-- **📊 Real-Time Analytics** - Monitor agent performance and ROI
-- **🔒 Enterprise Security** - Bank-grade security and compliance
-- **🚀 One-Click Deployment** - From concept to production in minutes
+AaaS wraps the Claude Agent SDK in a scalable web service, providing:
 
-## 🏆 Key Features
+- **RESTful API** for agent lifecycle management (create, start, stop, delete)
+- **Multi-agent orchestration** with isolated subprocess management
+- **8 specialized agent types** optimized for different use cases
+- **Async operations** for high-performance concurrent agent handling
+- **Security features** including API key authentication and rate limiting
+- **Simple Python client** for rapid integration
 
-### 1. **Agent Marketplace**
-Browse and deploy pre-built agents for common business tasks:
-- Customer Service Agents
-- Data Analysis Agents
-- Content Creation Agents
-- Sales Automation Agents
-- DevOps Agents
-- Security Monitoring Agents
+## ✨ Key Features
 
-### 2. **Custom Agent Builder**
-Create specialized agents for your unique needs:
-- Visual workflow designer
-- Pre-built components library
-- Natural language configuration
-- Testing sandbox
-- Version control
+### 🤖 Specialized Agent Types
 
-### 3. **Enterprise Integration**
-Seamlessly connect with your existing infrastructure:
-- REST API & GraphQL
-- Webhook support
-- Database connectors
-- Cloud service integrations
-- Legacy system adapters
+AaaS provides 8 pre-configured agent types, each optimized for specific tasks:
 
-### 4. **Intelligent Orchestration**
-Advanced agent management capabilities:
-- Load balancing
-- Auto-scaling
-- Failover handling
-- Task prioritization
-- Resource optimization
+| Agent Type | Description | Use Cases |
+|------------|-------------|-----------|
+| **General** | General-purpose agent for diverse tasks | Chat, Q&A, general assistance |
+| **Research** | Web search and research capabilities | Market research, data gathering |
+| **Code** | Software development and debugging | Code review, debugging, refactoring |
+| **Finance** | Financial analysis and calculations | Portfolio analysis, risk assessment |
+| **Customer Support** | Customer service interactions | Support tickets, FAQ responses |
+| **Personal Assistant** | Scheduling and task management | Calendar management, reminders |
+| **Data Analysis** | Data processing and insights | Report generation, statistics |
+| **Custom** | Fully customizable agent | Domain-specific applications |
 
-## 🤖 Agent Categories
+### 🔒 Security & Performance
 
-<table>
-<tr>
-<td width="33%" align="center">
+- **API Key Authentication** - Secure access control for production environments
+- **Rate Limiting** - Configurable request throttling with slowapi
+- **Isolated Subprocesses** - Each agent runs in its own Claude Code subprocess
+- **Resource Management** - Configurable max agents and timeout limits
+- **Tool Access Control** - Granular permission system for agent capabilities
+- **Async Architecture** - Non-blocking operations for optimal performance
 
-### 💼 Business Agents
-**Automation & Productivity**
+### 🚀 Developer Experience
 
-Invoice processing, report generation, meeting scheduling, email management
+- **RESTful API** - Standard HTTP endpoints with OpenAPI documentation
+- **Python Client** - High-level client library for easy integration
+- **Hot Reload** - Development server with auto-reload on code changes
+- **Interactive Docs** - Built-in Swagger UI at `/docs`
+- **Comprehensive Tests** - 100+ tests covering all major features
+- **Docker Support** - Containerized deployment ready
 
-</td>
-<td width="33%" align="center">
+## 📋 Requirements
 
-### 📊 Analytics Agents
-**Data & Insights**
+- Python 3.10 or higher
+- Anthropic API key ([Get one here](https://console.anthropic.com/))
+- 2GB+ RAM recommended
+- Linux, macOS, or Windows
 
-Real-time analytics, predictive modeling, anomaly detection, trend analysis
+## 🚀 Quick Start
 
-</td>
-<td width="33%" align="center">
+### Option 1: Hosted Service
 
-### 🛡️ Security Agents
-**Protection & Monitoring**
-
-Threat detection, compliance monitoring, access control, incident response
-
-</td>
-</tr>
-<tr>
-<td width="33%" align="center">
-
-### 🎨 Creative Agents
-**Content & Design**
-
-Content writing, image generation, video editing, brand management
-
-</td>
-<td width="33%" align="center">
-
-### 💬 Communication Agents
-**Customer Engagement**
-
-Chatbots, support automation, sentiment analysis, translation services
-
-</td>
-<td width="33%" align="center">
-
-### 🔧 DevOps Agents
-**Development & Operations**
-
-CI/CD automation, code review, testing, deployment management
-
-</td>
-</tr>
-</table>
-
-## 🎯 Use Cases
-
-### **Customer Service Automation**
-- 24/7 multilingual support
-- Intelligent ticket routing
-- Sentiment-based escalation
-- Knowledge base integration
-
-### **Sales Enhancement**
-- Lead qualification
-- Personalized outreach
-- Pipeline management
-- Revenue forecasting
-
-### **Operations Optimization**
-- Process automation
-- Resource allocation
-- Performance monitoring
-- Predictive maintenance
-
-### **Compliance & Risk**
-- Policy enforcement
-- Audit automation
-- Risk assessment
-- Regulatory reporting
-
-## 📊 Platform Benefits
-
-<div align="center">
-
-| Metric | Improvement |
-|--------|-------------|
-| **Deployment Time** | 95% faster |
-| **Operational Costs** | 70% reduction |
-| **Agent Reliability** | 99.99% uptime |
-| **Scaling Speed** | 1000x capacity in minutes |
-| **ROI** | 300% average in 6 months |
-| **User Productivity** | 5x increase |
-
-</div>
-
-## 🚀 Getting Started
-
-Choose your deployment option:
-
-### 🌟 Option 1: Hosted Service (Recommended)
-
-**Zero setup, instant access** - Let us handle the infrastructure!
+Use our hosted AaaS instance without managing infrastructure:
 
 ```bash
 # Install client library
@@ -194,305 +89,547 @@ from aaas import AgentClient, AgentType
 
 # Connect to hosted service
 client = AgentClient(
-    base_url="https://api.aaas.wilbtc.com",
-    api_key="your-api-key"
+    base_url="https://api.aaas.example.com",
+    api_key="your-api-key"  # Contact for API key
 )
 
-# Deploy and use an agent instantly
-agent = client.deploy_agent(agent_type=AgentType.RESEARCH)
-response = agent.send("Research AI agent trends")
-agent.delete()
+# Create and use a research agent
+agent_id = client.create_agent(agent_type=AgentType.RESEARCH)
+response = client.send_message(agent_id, "Research the latest AI trends")
+print(response)
+
+# Cleanup
+client.delete_agent(agent_id)
 ```
 
-**Get your API key:** Contact [@wilbtc](https://t.me/wilbtc) on Telegram
+**Get API Key**: [Contact us](https://t.me/wilbtc) for hosted service access
 
-**Benefits:**
-- ✅ No infrastructure management
-- ✅ Auto-scaling
-- ✅ 99.9% uptime SLA
-- ✅ 24/7 support
-- ✅ Free tier: 100 agent-hours/month
-
-📚 **[View Hosted Service Guide](docs/HOSTED_SERVICE.md)**
+📚 **[View Hosted Service Guide →](docs/HOSTED_SERVICE.md)**
 
 ---
 
-### 🏠 Option 2: Self-Hosted
+### Option 2: Self-Hosted Installation
 
-**Full control** - Deploy on your own infrastructure:
+Deploy AaaS on your own infrastructure:
+
+#### 1. Installation
 
 ```bash
 # Clone the repository
 git clone https://github.com/wilbtc/agent-as-service.git
 cd agent-as-service
 
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
 # Install dependencies
 pip install -e .
-
-# Configure environment
-cp .env.example .env
-# Edit .env and add your ANTHROPIC_API_KEY
-
-# Start the server
-aaas serve
 ```
 
-### **Using Python Client**
+#### 2. Configuration
 
-```python
-# Example: Deploy a Customer Service Agent
-from aaas import AgentClient
-
-client = AgentClient(base_url="http://localhost:8000")
-
-# Deploy agent from marketplace
-agent = client.deploy_agent(
-    template="customer-service-pro",
-    config={
-        "language": "multi",
-        "integration": "zendesk",
-        "personality": "professional"
-    }
-)
-
-print(f"Agent deployed: {agent.id}")
-print(f"Endpoint: {agent.endpoint}")
-
-# Send a message
-response = agent.send("Hello, I need help!")
-print(response)
-
-# Cleanup
-agent.delete()
-```
-
-### **Using REST API**
+Create a `.env` file with your settings:
 
 ```bash
-# Create an agent
+# Required: Anthropic API Key
+ANTHROPIC_API_KEY=your-api-key-here
+
+# Optional: API Configuration
+API_KEY=your-aaas-api-key        # Enable API authentication
+REQUIRE_API_KEY=true             # Enforce authentication
+HOST=0.0.0.0
+PORT=8000
+
+# Optional: Agent Configuration
+MAX_AGENTS=50                     # Maximum concurrent agents
+AGENT_TIMEOUT=3600               # Agent timeout in seconds
+MAX_TURNS=25                     # Max conversation turns per agent
+
+# Optional: Rate Limiting
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_PER_MINUTE=60
+RATE_LIMIT_AGENT_CREATION=10
+```
+
+#### 3. Start the Server
+
+```bash
+# Development mode (with auto-reload)
+uvicorn aaas.api:app --reload --host 0.0.0.0 --port 8000
+
+# Production mode
+uvicorn aaas.api:app --host 0.0.0.0 --port 8000 --workers 4
+```
+
+Server will start at `http://localhost:8000`
+
+- **API Documentation**: http://localhost:8000/docs
+- **Health Check**: http://localhost:8000/health
+
+## 📖 Usage Examples
+
+### Using the REST API
+
+#### Create an Agent
+
+```bash
 curl -X POST http://localhost:8000/api/v1/agents \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key" \
   -d '{
-    "config": {"template": "customer-service-pro"},
+    "config": {
+      "agent_type": "research",
+      "personality": "analytical",
+      "language": "en"
+    },
     "auto_start": true
   }'
-
-# Send a message
-curl -X POST http://localhost:8000/api/v1/agents/{agent_id}/messages \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Hello!"}'
 ```
 
-### **Using CLI**
+Response:
+```json
+{
+  "agent_id": "agent-abc123",
+  "status": "running",
+  "config": {
+    "agent_type": "research",
+    "personality": "analytical"
+  }
+}
+```
+
+#### Send a Message
 
 ```bash
-# Deploy an agent
-aaas deploy customer-service-pro
+curl -X POST http://localhost:8000/api/v1/agents/agent-abc123/messages \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key" \
+  -d '{
+    "message": "Research the latest developments in quantum computing",
+    "context": {
+      "user_id": "user-123",
+      "session_id": "session-456"
+    }
+  }'
+```
 
-# List agents
-aaas list
+#### List All Agents
+
+```bash
+curl http://localhost:8000/api/v1/agents \
+  -H "X-API-Key: your-api-key"
+```
+
+#### Delete an Agent
+
+```bash
+curl -X DELETE http://localhost:8000/api/v1/agents/agent-abc123 \
+  -H "X-API-Key: your-api-key"
+```
+
+### Using the Python Client
+
+```python
+from aaas import AgentClient, AgentConfig, AgentType, PermissionMode
+
+# Initialize client
+client = AgentClient(
+    base_url="http://localhost:8000",
+    api_key="your-api-key"
+)
+
+# Create a code analysis agent
+config = AgentConfig(
+    agent_type=AgentType.CODE,
+    personality="precise",
+    permission_mode=PermissionMode.ACCEPT_EDITS,
+    max_tokens=8192
+)
+
+agent_id = client.create_agent(config, auto_start=True)
+print(f"Created agent: {agent_id}")
 
 # Send a message
-aaas send <agent-id> "Hello, how can you help?"
+response = client.send_message(
+    agent_id,
+    "Review this Python function for security issues: def process_user_input(data): return eval(data)"
+)
+print(f"Agent response: {response}")
 
-# Delete an agent
-aaas delete <agent-id>
+# Get agent info
+info = client.get_agent(agent_id)
+print(f"Agent status: {info['status']}")
+print(f"Messages sent: {info['messages_count']}")
+
+# Cleanup
+client.delete_agent(agent_id)
 ```
 
-## 💰 Pricing Plans
+### Quick Query (One-Shot Requests)
 
-| Plan | Features | Price |
-|------|----------|-------|
-| **Starter** | 5 agents, 10k operations/month | $299/month |
-| **Professional** | 25 agents, 100k operations/month | $999/month |
-| **Enterprise** | Unlimited agents, custom limits | Contact Sales |
+For simple, stateless queries without maintaining an agent:
 
-All plans include:
-- ✅ Agent marketplace access
-- ✅ Visual builder
-- ✅ API access
-- ✅ Telegram support
-- ✅ Regular updates
-
-## 🛡️ Security & Compliance
-
-- **SOC 2 Type II** certified
-- **ISO 27001** compliant
-- **GDPR & CCPA** ready
-- **End-to-end encryption**
-- **Private cloud options**
-
-## 🤝 Technology Partners
-
-<div align="center">
-
-| AI Providers | Cloud Platforms | Integration Partners |
-|--------------|----------------|---------------------|
-| OpenAI | AWS | Salesforce |
-| Anthropic | Azure | Slack |
-| Google AI | GCP | Microsoft Teams |
-| Cohere | IBM Cloud | Zapier |
-
-</div>
-
-## 🏗️ Technical Architecture
-
-### **Core Components**
-
-AaaS is built on a modern, scalable architecture:
-
-1. **Agent Manager** - Manages Claude Code subprocess instances
-2. **REST API** - FastAPI-based API for agent control
-3. **Python Client** - Easy-to-use client library
-4. **CLI Tool** - Command-line interface for operations
-
-### **How It Works**
-
-```
-┌─────────────┐      ┌──────────────┐      ┌─────────────────┐
-│   Client    │─────▶│   AaaS API   │─────▶│ Agent Manager   │
-│  (Python)   │      │  (FastAPI)   │      │  (AsyncIO)      │
-└─────────────┘      └──────────────┘      └─────────────────┘
-                                                     │
-                                                     ▼
-                                          ┌──────────────────┐
-                                          │  Claude Code     │
-                                          │  Subprocesses    │
-                                          │  (Multiple)      │
-                                          └──────────────────┘
+```python
+# Quick query without creating a persistent agent
+response = client.quick_query(
+    message="Explain quantum entanglement in simple terms",
+    agent_type=AgentType.RESEARCH
+)
+print(response)
 ```
 
-### **Key Features Implementation**
+## 🏗️ Architecture
 
-- **Subprocess Management**: Each agent runs as an isolated Claude Code subprocess
-- **Async I/O**: Asynchronous communication for high performance
-- **Process Pooling**: Efficient resource utilization across agents
-- **Lifecycle Management**: Full control over agent start, stop, and restart
-- **Message Queue**: Robust message handling with timeout support
+### System Design
 
-### **Project Structure**
+```
+┌──────────────┐      HTTP/REST      ┌─────────────┐      AsyncIO      ┌──────────────────┐
+│   Client     │────────────────────▶│  FastAPI    │─────────────────▶│ Agent Manager    │
+│   Library    │                     │  Web Server │                   │   (Orchestrator) │
+└──────────────┘                     └─────────────┘                   └──────────────────┘
+                                                                                 │
+                                                                                 │ Manages
+                                                                                 ▼
+                                                                    ┌─────────────────────────┐
+                                                                    │   Agent Subprocesses    │
+                                                                    │  ┌─────┐  ┌─────┐       │
+                                                                    │  │ AG1 │  │ AG2 │  ...  │
+                                                                    │  └─────┘  └─────┘       │
+                                                                    │   (Claude Code SDK)     │
+                                                                    └─────────────────────────┘
+```
+
+### Core Components
+
+1. **FastAPI Web Server** (`api.py`)
+   - RESTful API endpoints
+   - Request validation with Pydantic
+   - Authentication and rate limiting
+   - OpenAPI documentation
+
+2. **Agent Manager** (`agent_manager.py`)
+   - Lifecycle management (create, start, stop, delete)
+   - Subprocess orchestration
+   - Message routing
+   - Resource pooling
+
+3. **Agent Classes** (`agent_manager.py`)
+   - Individual agent instances
+   - Claude SDK integration
+   - State management
+   - Message handling
+
+4. **Python Client** (`client.py`)
+   - High-level API wrapper
+   - Automatic error handling
+   - Connection management
+   - Type hints for IDE support
+
+### Project Structure
 
 ```
 agent-as-service/
 ├── src/aaas/
-│   ├── __init__.py          # Package exports
-│   ├── agent_manager.py     # Core agent management
-│   ├── api.py              # FastAPI REST API
-│   ├── client.py           # Python client library
-│   ├── cli.py              # Command-line interface
-│   ├── config.py           # Configuration management
-│   ├── models.py           # Pydantic data models
-│   └── server.py           # Server startup
-├── tests/                  # Test suite
-├── examples/               # Usage examples
-├── docs/                   # Documentation
-├── Dockerfile             # Container image
-├── docker-compose.yml     # Docker orchestration
-└── pyproject.toml        # Project metadata
-```
-
-## 📚 Documentation
-
-- 📖 [Quick Start Guide](docs/QUICKSTART.md) - Get started in 5 minutes
-- 🔧 [API Documentation](docs/API.md) - Complete API reference
-- 🚀 [Deployment Guide](docs/DEPLOYMENT.md) - Production deployment
-- 📋 [FAQ](docs/FAQ.md) - Frequently asked questions
-- ⚡ [Features](docs/FEATURES.md) - Detailed feature list
-- 💡 [Examples](examples/) - Code examples
-- 📹 [Interactive API Docs](http://localhost:8000/docs) - When server is running
-
-## 🔧 Configuration
-
-AaaS can be configured through environment variables:
-
-```bash
-# API Configuration
-HOST=0.0.0.0
-PORT=8000
-
-# Claude Code Configuration
-CLAUDE_CODE_PATH=claude
-ANTHROPIC_API_KEY=your-api-key
-CLAUDE_MODEL=claude-sonnet-4-5-20250929
-
-# Agent Configuration
-MAX_AGENTS=100
-AGENT_TIMEOUT=3600
-DEFAULT_WORKING_DIR=/tmp/aaas-agents
-
-# Logging
-LOG_LEVEL=INFO
-```
-
-See `.env.example` for all configuration options.
-
-## 🐳 Docker Deployment
-
-```bash
-# Build and run with Docker Compose
-docker-compose up -d
-
-# Or build manually
-docker build -t aaas:latest .
-docker run -p 8000:8000 -e ANTHROPIC_API_KEY=your-key aaas:latest
+│   ├── __init__.py           # Package exports
+│   ├── agent_manager.py      # Agent orchestration and subprocess management
+│   ├── api.py               # FastAPI REST API endpoints
+│   ├── auth.py              # Authentication middleware
+│   ├── client.py            # Python client library
+│   ├── config.py            # Configuration and settings
+│   ├── models.py            # Pydantic models and enums
+│   └── server.py            # Server startup utilities
+├── tests/
+│   ├── conftest.py          # Pytest fixtures
+│   ├── test_agent_types.py  # Agent type tests
+│   ├── test_api_endpoints.py # API endpoint tests
+│   ├── test_agent_manager.py # Agent manager tests
+│   └── README.md            # Testing documentation
+├── docs/
+│   └── HOSTED_SERVICE.md    # Hosted service guide
+├── examples/
+│   └── hosted_service_example.py
+├── .env.example             # Example environment configuration
+├── pytest.ini              # Test configuration
+├── pyproject.toml          # Project metadata and dependencies
+├── Dockerfile              # Docker container definition
+└── README.md               # This file
 ```
 
 ## 🧪 Testing
 
+AaaS includes a comprehensive test suite with 100+ tests:
+
 ```bash
-# Install dev dependencies
+# Install test dependencies
+pip install pytest pytest-asyncio pytest-cov pytest-mock
+
+# Run all tests
+pytest
+
+# Run with coverage report
+pytest --cov=src/aaas --cov-report=html
+
+# Run specific test categories
+pytest -m api           # API endpoint tests
+pytest -m auth          # Authentication tests
+pytest -m unit          # Unit tests
+```
+
+Test coverage includes:
+- ✅ All 8 agent types and configurations
+- ✅ API endpoints with authentication
+- ✅ Rate limiting enforcement
+- ✅ Agent lifecycle operations
+- ✅ Error handling
+- ✅ Concurrent operations
+
+See [tests/README.md](tests/README.md) for detailed testing documentation.
+
+## 🐳 Docker Deployment
+
+### Using Docker Compose
+
+```bash
+# Start services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+```
+
+### Manual Docker Build
+
+```bash
+# Build image
+docker build -t aaas:latest .
+
+# Run container
+docker run -d \
+  -p 8000:8000 \
+  -e ANTHROPIC_API_KEY=your-key \
+  -e API_KEY=your-aaas-key \
+  -e REQUIRE_API_KEY=true \
+  --name aaas-server \
+  aaas:latest
+```
+
+## 📚 Documentation
+
+### API Reference
+
+Full API documentation is available at `/docs` when the server is running:
+- **Interactive Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
+
+### Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/` | Root endpoint with service info |
+| `GET` | `/health` | Health check and status |
+| `POST` | `/api/v1/agents` | Create a new agent |
+| `GET` | `/api/v1/agents` | List all agents |
+| `GET` | `/api/v1/agents/{id}` | Get agent details |
+| `POST` | `/api/v1/agents/{id}/start` | Start an agent |
+| `POST` | `/api/v1/agents/{id}/stop` | Stop an agent |
+| `DELETE` | `/api/v1/agents/{id}` | Delete an agent |
+| `POST` | `/api/v1/agents/{id}/messages` | Send message to agent |
+| `GET` | `/api/v1/agent-types` | List available agent types |
+| `POST` | `/api/v1/query` | Quick query (stateless) |
+
+### Configuration Options
+
+| Environment Variable | Default | Description |
+|---------------------|---------|-------------|
+| `ANTHROPIC_API_KEY` | Required | Your Anthropic API key |
+| `API_KEY` | None | AaaS API key for authentication |
+| `REQUIRE_API_KEY` | `false` | Enable API key requirement |
+| `HOST` | `0.0.0.0` | Server host |
+| `PORT` | `8000` | Server port |
+| `MAX_AGENTS` | `50` | Maximum concurrent agents |
+| `AGENT_TIMEOUT` | `3600` | Agent timeout (seconds) |
+| `MAX_TURNS` | `25` | Max conversation turns |
+| `RATE_LIMIT_ENABLED` | `true` | Enable rate limiting |
+| `RATE_LIMIT_PER_MINUTE` | `60` | Default rate limit |
+| `LOG_LEVEL` | `INFO` | Logging level |
+
+See `.env.example` for complete configuration options.
+
+## 💡 Examples
+
+Check the `examples/` directory for more detailed usage examples:
+
+- `hosted_service_example.py` - Complete hosted service integration
+- Coming soon: Multi-agent workflows, streaming responses, webhooks
+
+## 🛠️ Development
+
+### Setup Development Environment
+
+```bash
+# Clone repository
+git clone https://github.com/wilbtc/agent-as-service.git
+cd agent-as-service
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate
+
+# Install in development mode
 pip install -e ".[dev]"
 
 # Run tests
 pytest
 
-# Run with coverage
-pytest --cov=aaas tests/
+# Start dev server with auto-reload
+uvicorn aaas.api:app --reload
 ```
 
-## 🚀 
-- Platform launch
-- 50+ marketplace agents
-- Visual builder
-- Voice-enabled agents
-- Mobile SDK
-- Advanced analytics
-- Edge deployment
-- Blockchain agents
-- AR/VR interfaces
-- Quantum-ready agents
-- Neural interfaces
-- Autonomous agent creation
+### Contributing
 
-## 👨‍💻 About WilBtc
+We welcome contributions! Please:
 
-**WilBtc** is a pioneer in AI automation and multi-agent systems. With deep expertise in enterprise software and artificial intelligence, WilBtc created AaaS to democratize access to advanced AI agent technology.
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes with tests
+4. Run the test suite
+5. Submit a pull request
+
+## 🔒 Security
+
+### Authentication
+
+Enable API key authentication for production:
+
+```bash
+# Generate a secure API key
+export API_KEY=$(openssl rand -hex 32)
+export REQUIRE_API_KEY=true
+```
+
+All requests must include the `X-API-Key` header:
+
+```bash
+curl -H "X-API-Key: your-api-key" http://localhost:8000/api/v1/agents
+```
+
+### Rate Limiting
+
+Configure rate limits to prevent abuse:
+
+```bash
+export RATE_LIMIT_ENABLED=true
+export RATE_LIMIT_PER_MINUTE=60
+export RATE_LIMIT_AGENT_CREATION=10  # Stricter limit for agent creation
+```
+
+### Best Practices
+
+- ✅ Use HTTPS in production
+- ✅ Enable API key authentication
+- ✅ Configure appropriate rate limits
+- ✅ Set resource limits (max agents, timeouts)
+- ✅ Monitor agent usage and costs
+- ✅ Regularly update dependencies
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+**"Module not found" errors**
+```bash
+# Ensure package is installed
+pip install -e .
+```
+
+**"Anthropic API key not set"**
+```bash
+# Set your API key
+export ANTHROPIC_API_KEY=your-key-here
+```
+
+**Port already in use**
+```bash
+# Use a different port
+uvicorn aaas.api:app --port 8080
+```
+
+**Agent creation fails**
+```bash
+# Check logs for details
+# Verify API key is valid
+# Ensure sufficient system resources
+```
+
+## 📊 Performance
+
+AaaS is designed for production workloads:
+
+- **Agent Creation**: ~2-3 seconds per agent
+- **Message Processing**: Sub-second response times (depends on Claude API)
+- **Concurrent Agents**: Tested with 50+ concurrent agents
+- **Memory Usage**: ~100MB base + ~50MB per active agent
+- **Async Operations**: Non-blocking I/O for optimal throughput
+
+## 🗺️ Roadmap
+
+### Version 2.1 (Next)
+- [ ] WebSocket support for streaming responses
+- [ ] Webhook callbacks for async notifications
+- [ ] Agent templates and presets
+- [ ] Metrics and monitoring dashboard
+- [ ] Database persistence for agent state
+
+### Version 2.2
+- [ ] Multi-tenancy support
+- [ ] Usage analytics and billing
+- [ ] Custom tool integration
+- [ ] Agent collaboration features
+
+### Version 3.0
+- [ ] Kubernetes deployment manifests
+- [ ] Distributed agent orchestration
+- [ ] Advanced security features
+- [ ] Plugin system for extensions
 
 ## 📞 Contact
 
-<div align="center">
+**Developer**: WilBtc
+**Telegram**: [@wilbtc](https://t.me/wilbtc)
 
-### **Telegram: [@wilbtc](https://t.me/wilbtc)**
+For:
+- 💼 Hosted service access
+- 🤝 Partnership opportunities
+- 🐛 Bug reports and feature requests
+- 💡 Custom development inquiries
 
-For all inquiries including:
-- Demo requests
-- Technical questions
-- Partnership opportunities
-- Enterprise licensing
-- Custom agent development
+## 📄 License
 
-</div>
+Copyright © 2025 WilBtc
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+Built with:
+- [Claude Agent SDK](https://docs.anthropic.com/) by Anthropic
+- [FastAPI](https://fastapi.tiangolo.com/) by Sebastián Ramírez
+- [Pydantic](https://docs.pydantic.dev/) for data validation
+- [slowapi](https://github.com/laurentS/slowapi) for rate limiting
 
 ---
 
 <div align="center">
 
-**Agent as a Service™ (AaaS)**  
-*Deploy AI Agents at Scale*
+**Agent as a Service (AaaS)**
+*Professional AI Agent Orchestration*
 
-**© 2025 WilBtc. All Rights Reserved.**
+Made with ❤️ by [WilBtc](https://github.com/wilbtc)
 
-**This is a closed-source proprietary system.**  
-**Unauthorized use, reproduction, or distribution is strictly prohibited.**
+[⭐ Star on GitHub](https://github.com/wilbtc/agent-as-service) • [🐛 Report Bug](https://github.com/wilbtc/agent-as-service/issues) • [💡 Request Feature](https://github.com/wilbtc/agent-as-service/issues)
 
 </div>
