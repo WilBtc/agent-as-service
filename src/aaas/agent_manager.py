@@ -154,7 +154,26 @@ class ClaudeAgent:
                     except asyncio.CancelledError:
                         pass
 
-                # Cleanup client resources
+                # FIXED: Properly cleanup client resources before setting to None
+                # Check if client has cleanup methods and call them
+                try:
+                    if hasattr(self.client, 'aclose'):
+                        await self.client.aclose()
+                        logger.debug(f"Client resources closed via aclose() for agent {self.agent_id}")
+                    elif hasattr(self.client, 'close'):
+                        close_result = self.client.close()
+                        # Handle if close() is async
+                        if asyncio.iscoroutine(close_result):
+                            await close_result
+                        logger.debug(f"Client resources closed via close() for agent {self.agent_id}")
+                    elif hasattr(self.client, '__aexit__'):
+                        # If client is a context manager, exit it properly
+                        await self.client.__aexit__(None, None, None)
+                        logger.debug(f"Client context manager exited for agent {self.agent_id}")
+                except Exception as cleanup_error:
+                    logger.warning(f"Error during client cleanup for agent {self.agent_id}: {cleanup_error}")
+
+                # Now safe to set to None
                 self.client = None
 
                 self.status = AgentStatus.STOPPED
@@ -231,37 +250,94 @@ class ClaudeAgent:
             raise
 
     def _extract_text_from_message(self, message: Any) -> str:
-        """Extract text content from a response message"""
+        """
+        Extract text content from a response message.
+
+        Handles multiple SDK response formats with robust fallbacks.
+        """
         try:
-            # Handle different message types
+            # Handle None or empty messages
+            if message is None:
+                logger.debug("Received None message")
+                return ""
+
+            # Strategy 1: Check for 'content' attribute (most common)
             if hasattr(message, 'content'):
                 content = message.content
 
-                # String content
+                # Direct string content
                 if isinstance(content, str):
+                    logger.debug(f"Extracted string content: {len(content)} chars")
                     return content
 
                 # List of content blocks
-                elif isinstance(content, list):
+                if isinstance(content, list):
                     text_parts = []
-                    for block in content:
+                    for i, block in enumerate(content):
+                        # Try multiple extraction methods for each block
+                        block_text = None
+
+                        # Method 1: Direct text attribute
                         if hasattr(block, 'text'):
-                            text_parts.append(block.text)
+                            block_text = str(block.text)
+                        # Method 2: Dict with 'text' key
                         elif isinstance(block, dict) and 'text' in block:
-                            text_parts.append(block['text'])
-                        elif hasattr(block, 'type') and block.type == 'text':
-                            if hasattr(block, 'text'):
-                                text_parts.append(block.text)
+                            block_text = str(block['text'])
+                        # Method 3: Typed text block
+                        elif hasattr(block, 'type'):
+                            if block.type == 'text' and hasattr(block, 'text'):
+                                block_text = str(block.text)
+                            # Method 4: Other types that may have content
+                            elif hasattr(block, 'content'):
+                                block_text = str(block.content)
+
+                        if block_text:
+                            text_parts.append(block_text)
+                            logger.debug(f"Extracted block {i}: {len(block_text)} chars")
+                        else:
+                            logger.debug(f"Could not extract text from block {i}: {type(block)}")
 
                     if text_parts:
-                        return "\n".join(text_parts)
+                        result = "\n".join(text_parts)
+                        logger.debug(f"Extracted {len(text_parts)} text blocks, total {len(result)} chars")
+                        return result
 
-            # Fallback to string representation
-            return str(message)
+                # Dict-like content with nested structure
+                if isinstance(content, dict):
+                    if 'text' in content:
+                        return str(content['text'])
+                    elif 'message' in content:
+                        return str(content['message'])
+
+            # Strategy 2: Direct string message
+            if isinstance(message, str):
+                logger.debug(f"Message is direct string: {len(message)} chars")
+                return message
+
+            # Strategy 3: Dict-like message
+            if isinstance(message, dict):
+                for key in ['text', 'content', 'message', 'response']:
+                    if key in message:
+                        logger.debug(f"Extracted from dict key '{key}'")
+                        return str(message[key])
+
+            # Strategy 4: Check for __str__ or __repr__
+            str_repr = str(message)
+            if str_repr and str_repr != repr(message.__class__):
+                logger.debug(f"Using string representation: {len(str_repr)} chars")
+                return str_repr
+
+            # Last resort: log the message type and return empty
+            logger.warning(f"Unable to extract text from message of type {type(message)}: {message}")
+            return ""
 
         except Exception as e:
-            logger.warning(f"Error extracting text from message: {e}")
-            return str(message)
+            logger.error(f"Exception while extracting text from message: {e}", exc_info=True)
+            # Final fallback
+            try:
+                return str(message) if message is not None else ""
+            except Exception:
+                return ""
 
     def get_info(self) -> AgentInfo:
         """Get agent information"""
@@ -302,25 +378,45 @@ class ClaudeAgent:
                 logger.error(f"Error in health check loop for agent {self.agent_id}: {e}")
 
     async def _check_health(self) -> bool:
-        """Check if agent is healthy"""
+        """
+        Check if agent is healthy.
+
+        NOTE: Due to Claude Agent SDK limitations, we cannot perform deep health checks
+        (e.g., pinging the agent with a test message). The SDK doesn't provide a health
+        check API endpoint. This implementation performs basic checks on client state,
+        status, and timeout conditions.
+
+        Future improvements when SDK supports it:
+        - Send lightweight ping message to verify responsiveness
+        - Check internal SDK connection state
+        - Validate environment and working directory integrity
+        """
         try:
-            # Basic health check - verify client exists and status is correct
+            # Check 1: Verify client exists
             if not self.client:
+                logger.warning(f"Health check failed for agent {self.agent_id}: Client not initialized")
                 return False
 
+            # Check 2: Verify agent status is running
             if self.status != AgentStatus.RUNNING:
+                logger.warning(f"Health check failed for agent {self.agent_id}: Status is {self.status}, expected RUNNING")
                 return False
 
-            # Check if agent is not stuck (has had recent activity or hasn't timed out)
+            # Check 3: Verify agent hasn't exceeded timeout (not stuck)
             idle_time = (datetime.now(timezone.utc) - self.last_activity).total_seconds()
             if idle_time > settings.agent_timeout:
-                logger.warning(f"Agent {self.agent_id} exceeded timeout ({idle_time}s > {settings.agent_timeout}s)")
+                logger.warning(
+                    f"Health check failed for agent {self.agent_id}: "
+                    f"Exceeded timeout (idle for {idle_time:.0f}s > {settings.agent_timeout}s)"
+                )
                 return False
 
+            # All checks passed
+            logger.debug(f"Health check passed for agent {self.agent_id} (idle: {idle_time:.0f}s)")
             return True
 
         except Exception as e:
-            logger.error(f"Health check failed for agent {self.agent_id}: {e}")
+            logger.error(f"Health check exception for agent {self.agent_id}: {e}", exc_info=True)
             return False
 
     async def _idle_monitor_loop(self):
@@ -335,7 +431,14 @@ class ClaudeAgent:
 
                 if idle_time > settings.agent_idle_timeout:
                     logger.info(f"Agent {self.agent_id} idle timeout ({idle_time}s), shutting down")
+
+                    # FIXED: Set status to IDLE and track the transition
                     self.status = AgentStatus.IDLE
+
+                    # Track idle transition as an error event for monitoring
+                    track_agent_error("idle_timeout", str(self.config.agent_type))
+
+                    # Stop the agent
                     await self.stop()
                     break
 
@@ -401,45 +504,66 @@ class AgentManager:
 
     async def create_agent(self, config: AgentConfig, auto_start: bool = True) -> str:
         """Create a new agent instance"""
+        # Handle backward compatibility with template field
+        if hasattr(config, 'template') and config.template and not config.agent_type:
+            # Try to map template to agent type
+            template_lower = config.template.lower()
+            if "research" in template_lower:
+                config.agent_type = AgentType.RESEARCH
+            elif "code" in template_lower or "developer" in template_lower:
+                config.agent_type = AgentType.CODE
+            elif "finance" in template_lower:
+                config.agent_type = AgentType.FINANCE
+            elif "support" in template_lower or "customer" in template_lower:
+                config.agent_type = AgentType.CUSTOMER_SUPPORT
+            elif "assistant" in template_lower:
+                config.agent_type = AgentType.PERSONAL_ASSISTANT
+            elif "data" in template_lower or "analysis" in template_lower:
+                config.agent_type = AgentType.DATA_ANALYSIS
+            else:
+                config.agent_type = AgentType.GENERAL
+
+        agent_id = str(uuid.uuid4())
+        agent = ClaudeAgent(agent_id, config)
+
+        # Add to registry with lock
         async with self._lock:
             if len(self.agents) >= settings.max_agents:
                 raise ValueError(f"Maximum number of agents ({settings.max_agents}) reached")
-
-            # Handle backward compatibility with template field
-            if config.template and not config.agent_type:
-                # Try to map template to agent type
-                template_lower = config.template.lower()
-                if "research" in template_lower:
-                    config.agent_type = AgentType.RESEARCH
-                elif "code" in template_lower or "developer" in template_lower:
-                    config.agent_type = AgentType.CODE
-                elif "finance" in template_lower:
-                    config.agent_type = AgentType.FINANCE
-                elif "support" in template_lower or "customer" in template_lower:
-                    config.agent_type = AgentType.CUSTOMER_SUPPORT
-                elif "assistant" in template_lower:
-                    config.agent_type = AgentType.PERSONAL_ASSISTANT
-                elif "data" in template_lower or "analysis" in template_lower:
-                    config.agent_type = AgentType.DATA_ANALYSIS
-                else:
-                    config.agent_type = AgentType.GENERAL
-
-            agent_id = str(uuid.uuid4())
-            agent = ClaudeAgent(agent_id, config)
             self.agents[agent_id] = agent
 
-            if auto_start:
-                await agent.start()
+        # Start agent outside of lock to avoid blocking other operations
+        if auto_start:
+            try:
+                # FIXED: Add timeout to prevent hanging on start
+                await asyncio.wait_for(
+                    agent.start(),
+                    timeout=settings.agent_start_timeout
+                )
+            except asyncio.TimeoutError:
+                # Remove from registry if start times out
+                async with self._lock:
+                    self.agents.pop(agent_id, None)
+                error_msg = f"Agent {agent_id} start timed out after {settings.agent_start_timeout}s"
+                logger.error(error_msg)
+                track_agent_error("start_timeout", str(config.agent_type))
+                raise TimeoutError(error_msg)
+            except Exception as e:
+                # Remove from registry if start fails
+                async with self._lock:
+                    self.agents.pop(agent_id, None)
+                logger.error(f"Failed to start agent {agent_id}: {e}")
+                raise
 
-            # Track metrics
-            track_agent_creation(str(config.agent_type), auto_start)
+        # Track metrics
+        track_agent_creation(str(config.agent_type), auto_start)
 
-            # Track with autoscaler
-            if self.autoscaler:
-                self.autoscaler.track_request()
+        # Track with autoscaler
+        if self.autoscaler:
+            self.autoscaler.track_request()
 
-            logger.info(f"Created agent {agent_id} of type {config.agent_type}")
-            return agent_id
+        logger.info(f"Created agent {agent_id} of type {config.agent_type}")
+        return agent_id
 
     async def get_agent(self, agent_id: str) -> Optional[ClaudeAgent]:
         """Get an agent by ID"""

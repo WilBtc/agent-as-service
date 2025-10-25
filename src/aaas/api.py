@@ -7,8 +7,9 @@ import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Dict, List
+from uuid import UUID
 
-from fastapi import FastAPI, HTTPException, Depends, status, Request
+from fastapi import FastAPI, HTTPException, Depends, status, Request, Path, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -71,12 +72,25 @@ async def lifespan(app: FastAPI):
     # Start system metrics updates
     import asyncio
     async def update_metrics_loop():
+        error_count = 0
+        max_consecutive_errors = 5
+
         while True:
             try:
                 update_system_metrics()
+                error_count = 0  # Reset on success
                 await asyncio.sleep(10)  # Update every 10 seconds
             except Exception as e:
-                logger.error(f"Error updating system metrics: {e}")
+                error_count += 1
+                logger.error(f"Error updating system metrics: {e} (consecutive errors: {error_count})")
+
+                # Back off if too many consecutive failures
+                if error_count >= max_consecutive_errors:
+                    logger.critical(f"Metrics loop failed {max_consecutive_errors} times, backing off for 60s")
+                    await asyncio.sleep(60)  # Back off for 1 minute
+                    error_count = 0  # Reset after backoff
+                else:
+                    await asyncio.sleep(10)
 
     metrics_task = None
     if settings.metrics_enabled:
@@ -121,6 +135,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Helper function for UUID validation
+def validate_agent_id(agent_id: str) -> None:
+    """Validate that agent_id is a valid UUID format"""
+    try:
+        UUID(agent_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid agent ID format. Must be a valid UUID."
+        )
 
 
 # Add metrics tracking middleware
@@ -277,11 +303,12 @@ async def list_agents(
 @limiter.limit(f"{settings.rate_limit_per_minute}/minute")
 async def get_agent(
     request: Request,
-    agent_id: str,
+    agent_id: str = Path(..., description="Agent UUID"),
     manager: AgentManager = Depends(get_agent_manager),
     api_key: str = Depends(verify_api_key),
 ):
     """Get information about a specific agent (Protected: requires API key, rate limited)"""
+    validate_agent_id(agent_id)
     agent = await manager.get_agent(agent_id)
     if not agent:
         raise HTTPException(
@@ -296,12 +323,13 @@ async def get_agent(
 @limiter.limit(f"{settings.rate_limit_per_minute}/minute")
 async def send_message(
     request: Request,
-    agent_id: str,
-    message_request: MessageRequest,
+    agent_id: str = Path(..., description="Agent UUID"),
+    message_request: MessageRequest = Body(...),
     manager: AgentManager = Depends(get_agent_manager),
     api_key: str = Depends(verify_api_key),
 ):
     """Send a message to an agent (Protected: requires API key, rate limited)"""
+    validate_agent_id(agent_id)
     agent = await manager.get_agent(agent_id)
     if not agent:
         raise HTTPException(
@@ -335,11 +363,12 @@ async def send_message(
 @limiter.limit(f"{settings.rate_limit_per_minute}/minute")
 async def start_agent(
     request: Request,
-    agent_id: str,
+    agent_id: str = Path(..., description="Agent UUID"),
     manager: AgentManager = Depends(get_agent_manager),
     api_key: str = Depends(verify_api_key),
 ):
     """Start an agent (Protected: requires API key, rate limited)"""
+    validate_agent_id(agent_id)
     agent = await manager.get_agent(agent_id)
     if not agent:
         raise HTTPException(
@@ -368,11 +397,12 @@ async def start_agent(
 @limiter.limit(f"{settings.rate_limit_per_minute}/minute")
 async def stop_agent(
     request: Request,
-    agent_id: str,
+    agent_id: str = Path(..., description="Agent UUID"),
     manager: AgentManager = Depends(get_agent_manager),
     api_key: str = Depends(verify_api_key),
 ):
     """Stop an agent (Protected: requires API key, rate limited)"""
+    validate_agent_id(agent_id)
     agent = await manager.get_agent(agent_id)
     if not agent:
         raise HTTPException(
@@ -401,11 +431,12 @@ async def stop_agent(
 @limiter.limit(f"{settings.rate_limit_per_minute}/minute")
 async def delete_agent(
     request: Request,
-    agent_id: str,
+    agent_id: str = Path(..., description="Agent UUID"),
     manager: AgentManager = Depends(get_agent_manager),
     api_key: str = Depends(verify_api_key),
 ):
     """Delete an agent (Protected: requires API key, rate limited)"""
+    validate_agent_id(agent_id)
     success = await manager.delete_agent(agent_id)
     if not success:
         raise HTTPException(

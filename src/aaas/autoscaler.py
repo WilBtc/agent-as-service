@@ -9,7 +9,7 @@ from typing import Optional, Dict
 from collections import deque
 
 from .models import AgentConfig, AgentType, AgentStatus
-from .metrics import track_autoscale_event, autoscale_agents_gauge
+from .metrics import track_autoscale_event, autoscale_agents_gauge, track_agent_error
 
 logger = logging.getLogger(__name__)
 
@@ -191,6 +191,8 @@ class AgentAutoscaler:
         track_autoscale_event('up', f'creating_{count}_agents')
 
         created_count = 0
+        failed_count = 0
+
         for i in range(count):
             try:
                 # Create general-purpose agent
@@ -199,73 +201,120 @@ class AgentAutoscaler:
                 created_count += 1
                 logger.debug(f"Created idle agent {agent_id} ({i+1}/{count})")
             except Exception as e:
-                logger.error(f"Failed to create agent during scale-up: {e}")
+                failed_count += 1
+                logger.error(f"Failed to create agent during scale-up (attempt {i+1}/{count}): {e}")
+                track_agent_error("autoscale_create_failed", "general")
 
         self.last_scale_up = datetime.now(timezone.utc)
-        logger.info(f"Scale up completed: created {created_count}/{count} agents")
+
+        if failed_count > 0:
+            logger.warning(f"Scale up completed with errors: created {created_count}/{count} agents ({failed_count} failed)")
+            track_autoscale_event('up_partial', f'created_{created_count}_failed_{failed_count}')
+        else:
+            logger.info(f"Scale up completed successfully: created {created_count}/{count} agents")
 
     async def _scale_down(self, count: int):
         """Scale down by removing idle agents"""
         logger.info(f"Scaling down: removing up to {count} idle agents")
         track_autoscale_event('down', f'removing_{count}_agents')
 
-        agents = await self.manager.list_agents()
+        try:
+            agents = await self.manager.list_agents()
+        except Exception as e:
+            logger.error(f"Failed to list agents during scale-down: {e}")
+            track_agent_error("autoscale_list_failed", "general")
+            return
 
         # Find idle agents (stopped or running with no messages)
         idle_agents = []
         for agent_id, agent_info in agents.items():
-            agent = await self.manager.get_agent(agent_id)
-            if not agent:
-                continue
+            try:
+                agent = await self.manager.get_agent(agent_id)
+                if not agent:
+                    continue
 
-            if (agent.status == AgentStatus.STOPPED or
-                agent.status == AgentStatus.IDLE or
-                (agent.status == AgentStatus.RUNNING and agent.messages_count == 0)):
-                idle_agents.append((agent_id, agent))
+                if (agent.status == AgentStatus.STOPPED or
+                    agent.status == AgentStatus.IDLE or
+                    (agent.status == AgentStatus.RUNNING and agent.messages_count == 0)):
+                    idle_agents.append((agent_id, agent))
+            except Exception as e:
+                logger.warning(f"Error checking agent {agent_id} during scale-down: {e}")
 
         # Sort by creation time (oldest first)
         idle_agents.sort(key=lambda x: x[1].created_at)
 
         # Remove oldest idle agents
         removed_count = 0
+        failed_count = 0
+
         for agent_id, agent in idle_agents[:count]:
             try:
                 await self.manager.delete_agent(agent_id)
                 removed_count += 1
                 logger.debug(f"Removed idle agent {agent_id}")
             except Exception as e:
+                failed_count += 1
                 logger.error(f"Failed to remove agent {agent_id}: {e}")
+                track_agent_error("autoscale_delete_failed", "general")
 
         self.last_scale_down = datetime.now(timezone.utc)
-        logger.info(f"Scale down completed: removed {removed_count}/{count} agents")
+
+        if failed_count > 0:
+            logger.warning(f"Scale down completed with errors: removed {removed_count}/{min(count, len(idle_agents))} agents ({failed_count} failed)")
+            track_autoscale_event('down_partial', f'removed_{removed_count}_failed_{failed_count}')
+        else:
+            logger.info(f"Scale down completed successfully: removed {removed_count}/{min(count, len(idle_agents))} agents")
 
     async def _recover_failed_agents(self, agents: Dict):
         """Attempt to recover failed agents"""
-        error_agents = [
-            (agent_id, await self.manager.get_agent(agent_id))
-            for agent_id, agent_info in agents.items()
-            if agent_info.status == AgentStatus.ERROR
-        ]
+        # Collect error agents
+        error_agents = []
+        for agent_id, agent_info in agents.items():
+            if agent_info.status == AgentStatus.ERROR:
+                try:
+                    agent = await self.manager.get_agent(agent_id)
+                    if agent:
+                        error_agents.append((agent_id, agent))
+                except Exception as e:
+                    logger.warning(f"Failed to get agent {agent_id} for recovery: {e}")
+
+        if not error_agents:
+            return
+
+        logger.info(f"Attempting to recover {len(error_agents)} failed agents")
+        recovered_count = 0
+        failed_count = 0
 
         for agent_id, agent in error_agents:
-            if not agent:
-                continue
-
             try:
                 logger.info(f"Attempting to recover failed agent {agent_id}")
                 success = await agent.recover()
 
                 if success:
+                    recovered_count += 1
                     logger.info(f"Successfully recovered agent {agent_id}")
                 else:
+                    failed_count += 1
                     logger.warning(f"Failed to recover agent {agent_id}")
             except Exception as e:
+                failed_count += 1
                 logger.error(f"Error recovering agent {agent_id}: {e}")
+                track_agent_error("autoscale_recovery_error", str(agent.config.agent_type))
+
+        logger.info(f"Recovery completed: {recovered_count} succeeded, {failed_count} failed out of {len(error_agents)} agents")
 
     def track_request(self):
         """Track a request for autoscaling decisions"""
         now = datetime.now(timezone.utc)
         self.request_history.append(now)
+
+        # Periodically clean old entries to prevent memory bloat
+        # Clean when we're over halfway to max and have old entries
+        if len(self.request_history) > 500:
+            cutoff = now - self.metrics_window
+            # Remove old entries from the left (oldest first)
+            while self.request_history and self.request_history[0] < cutoff:
+                self.request_history.popleft()
 
     def _get_recent_request_rate(self) -> float:
         """Get request rate per minute over the metrics window"""

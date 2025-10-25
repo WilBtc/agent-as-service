@@ -9,7 +9,19 @@ from functools import wraps
 from typing import Callable
 import logging
 
+# Try to import psutil for system metrics
+try:
+    import psutil
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
+    psutil = None
+
 logger = logging.getLogger(__name__)
+
+# Log psutil availability once at module level
+if not PSUTIL_AVAILABLE:
+    logger.warning("psutil not installed - system metrics (CPU, memory) will be unavailable")
 
 
 # Application info
@@ -305,9 +317,10 @@ def get_metrics() -> Response:
 # System monitoring functions
 def update_system_metrics():
     """Update system-level metrics"""
-    try:
-        import psutil
+    if not PSUTIL_AVAILABLE:
+        return  # Silent skip - warning already logged at module level
 
+    try:
         # Memory metrics
         memory = psutil.virtual_memory()
         system_memory_usage_gauge.labels(type='used').set(memory.used)
@@ -318,7 +331,5 @@ def update_system_metrics():
         cpu_percent = psutil.cpu_percent(interval=1)
         system_cpu_usage_gauge.set(cpu_percent)
 
-    except ImportError:
-        logger.warning("psutil not installed, system metrics unavailable")
     except Exception as e:
         logger.error(f"Error updating system metrics: {e}")

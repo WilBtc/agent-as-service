@@ -2,10 +2,11 @@
 Data models for AaaS
 """
 
+import warnings
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class AgentStatus(str, Enum):
@@ -56,6 +57,19 @@ class AgentConfig(BaseModel):
     permission_mode: PermissionMode = Field(default=PermissionMode.ASK, description="Permission mode for agent operations")
     max_turns: Optional[int] = Field(default=None, description="Maximum number of conversation turns")
     model: Optional[str] = Field(default="claude-sonnet-4-5-20250929", description="Claude model to use")
+
+    @field_validator('template')
+    @classmethod
+    def validate_template_deprecated(cls, v):
+        """Warn when deprecated template field is used"""
+        if v is not None:
+            warnings.warn(
+                "The 'template' field is deprecated and will be removed in a future version. "
+                "Use 'agent_type' instead.",
+                DeprecationWarning,
+                stacklevel=2
+            )
+        return v
 
     class Config:
         json_schema_extra = {

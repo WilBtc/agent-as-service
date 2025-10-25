@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     min_agents: int = 1
     agent_timeout: int = 3600  # 1 hour
     agent_idle_timeout: int = 300  # 5 minutes
+    agent_start_timeout: int = 60  # 60 seconds for agent startup
     max_turns: int = 25
     default_working_dir: str = "/tmp/aaas-agents"
 
