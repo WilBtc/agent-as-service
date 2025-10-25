@@ -5,7 +5,7 @@ FastAPI REST API for Agent as a Service
 import logging
 import time
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List
 
 from fastapi import FastAPI, HTTPException, Depends, status, Request
@@ -153,7 +153,7 @@ async def root():
     """Root endpoint"""
     return {
         "service": "Agent as a Service",
-        "version": "1.0.0",
+        "version": "2.0.0",
         "status": "running",
         "docs": "/docs",
     }
@@ -235,7 +235,7 @@ async def create_agent(
         agent_id = await manager.create_agent(create_request.config, create_request.auto_start)
         agent = await manager.get_agent(agent_id)
 
-        logger.info(f"Agent created: {agent_id} (API key: {api_key[:8] if api_key != 'disabled' else 'disabled'}...)")
+        logger.info(f"Agent created: {agent_id} (authenticated: {api_key != 'disabled'})")
 
         return CreateAgentResponse(
             agent_id=agent_id,
@@ -454,7 +454,7 @@ async def quick_query(
         return AgentResponse(
             agent_id="quick-query",
             response=response,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             metadata={"agent_type": agent_type.value, "query_type": "quick"},
         )
     except Exception as e:

@@ -129,7 +129,7 @@ class AgentAutoscaler:
             return False
 
         # Check cooldown period
-        if self.last_scale_up and (datetime.utcnow() - self.last_scale_up) < self.scale_cooldown:
+        if self.last_scale_up and (datetime.now(timezone.utc) - self.last_scale_up) < self.scale_cooldown:
             return False
 
         # Scale up if utilization is high
@@ -155,7 +155,7 @@ class AgentAutoscaler:
             return False
 
         # Check cooldown period
-        if self.last_scale_down and (datetime.utcnow() - self.last_scale_down) < self.scale_cooldown:
+        if self.last_scale_down and (datetime.now(timezone.utc) - self.last_scale_down) < self.scale_cooldown:
             return False
 
         # Scale down if utilization is low
@@ -201,7 +201,7 @@ class AgentAutoscaler:
             except Exception as e:
                 logger.error(f"Failed to create agent during scale-up: {e}")
 
-        self.last_scale_up = datetime.utcnow()
+        self.last_scale_up = datetime.now(timezone.utc)
         logger.info(f"Scale up completed: created {created_count}/{count} agents")
 
     async def _scale_down(self, count: int):
@@ -236,7 +236,7 @@ class AgentAutoscaler:
             except Exception as e:
                 logger.error(f"Failed to remove agent {agent_id}: {e}")
 
-        self.last_scale_down = datetime.utcnow()
+        self.last_scale_down = datetime.now(timezone.utc)
         logger.info(f"Scale down completed: removed {removed_count}/{count} agents")
 
     async def _recover_failed_agents(self, agents: Dict):
@@ -264,7 +264,7 @@ class AgentAutoscaler:
 
     def track_request(self):
         """Track a request for autoscaling decisions"""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         self.request_history.append(now)
 
     def _get_recent_request_rate(self) -> float:
@@ -272,7 +272,7 @@ class AgentAutoscaler:
         if not self.request_history:
             return 0.0
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         cutoff = now - self.metrics_window
 
         # Count recent requests

@@ -7,7 +7,7 @@ import json
 import logging
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Optional, List, Any
 
@@ -45,8 +45,8 @@ class ClaudeAgent:
         self.agent_id = agent_id
         self.config = config
         self.status = AgentStatus.STOPPED
-        self.created_at = datetime.utcnow()
-        self.last_activity = datetime.utcnow()
+        self.created_at = datetime.now(timezone.utc)
+        self.last_activity = datetime.now(timezone.utc)
         self.client: Optional[ClaudeSDKClient] = None
         self.working_dir = config.working_directory or os.path.join(
             settings.default_working_dir, agent_id
@@ -103,7 +103,7 @@ class ClaudeAgent:
             # Note: Client initialization happens, but we enter context when sending messages
 
             self.status = AgentStatus.RUNNING
-            self.last_activity = datetime.utcnow()
+            self.last_activity = datetime.now(timezone.utc)
 
             # Track metrics
             track_agent_start(str(self.config.agent_type))
@@ -174,7 +174,7 @@ class ClaudeAgent:
         if not self.client or self.status != AgentStatus.RUNNING:
             raise RuntimeError(f"Agent {self.agent_id} is not running")
 
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
 
         try:
             logger.info(f"Sending message to agent {self.agent_id}: {message[:100]}...")
@@ -203,28 +203,28 @@ class ClaudeAgent:
                         logger.debug(f"Agent {self.agent_id} response chunk: {text[:100]}...")
 
             self.messages_count += 1
-            self.last_activity = datetime.utcnow()
+            self.last_activity = datetime.now(timezone.utc)
             self._conversation_history.append({
                 "user": message,
                 "assistant": response_text,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             })
 
             # Track metrics
-            duration = (datetime.utcnow() - start_time).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
             track_message(str(self.config.agent_type), "success", duration)
 
             logger.info(f"Agent {self.agent_id} responded successfully")
             return response_text if response_text else "No response received"
 
         except asyncio.TimeoutError:
-            duration = (datetime.utcnow() - start_time).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
             track_message(str(self.config.agent_type), "timeout", duration)
             track_agent_error("message_timeout", str(self.config.agent_type))
             logger.error(f"Timeout waiting for response from agent {self.agent_id}")
             raise
         except Exception as e:
-            duration = (datetime.utcnow() - start_time).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
             track_message(str(self.config.agent_type), "error", duration)
             track_agent_error("message_error", str(self.config.agent_type))
             logger.error(f"Error sending message to agent {self.agent_id}: {e}", exc_info=True)
@@ -312,7 +312,7 @@ class ClaudeAgent:
                 return False
 
             # Check if agent is not stuck (has had recent activity or hasn't timed out)
-            idle_time = (datetime.utcnow() - self.last_activity).total_seconds()
+            idle_time = (datetime.now(timezone.utc) - self.last_activity).total_seconds()
             if idle_time > settings.agent_timeout:
                 logger.warning(f"Agent {self.agent_id} exceeded timeout ({idle_time}s > {settings.agent_timeout}s)")
                 return False
@@ -331,7 +331,7 @@ class ClaudeAgent:
             try:
                 await asyncio.sleep(60)  # Check every minute
 
-                idle_time = (datetime.utcnow() - self.last_activity).total_seconds()
+                idle_time = (datetime.now(timezone.utc) - self.last_activity).total_seconds()
 
                 if idle_time > settings.agent_idle_timeout:
                     logger.info(f"Agent {self.agent_id} idle timeout ({idle_time}s), shutting down")
