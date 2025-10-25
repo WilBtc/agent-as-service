@@ -3,6 +3,7 @@ FastAPI REST API for Agent as a Service
 """
 
 import logging
+import time
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Dict, List
@@ -27,6 +28,12 @@ from .models import (
     AgentType,
     AGENT_TYPE_CONFIGS,
 )
+from .metrics import (
+    get_metrics,
+    track_http_request,
+    track_rate_limit_exceeded,
+    update_system_metrics,
+)
 
 
 # Configure logging
@@ -45,15 +52,53 @@ limiter = Limiter(key_func=get_remote_address, enabled=settings.rate_limit_enabl
 async def lifespan(app: FastAPI):
     """Application lifespan manager"""
     # Startup
-    logger.info("Starting Agent as a Service")
+    logger.info("Starting Agent as a Service v2.0.0")
+    logger.info(f"Environment: {settings.environment}")
     logger.info(f"Rate limiting: {'enabled' if settings.rate_limit_enabled else 'disabled'}")
     logger.info(f"API authentication: {'enabled' if settings.require_api_key else 'disabled'}")
+    logger.info(f"Auto-scaling: {'enabled' if settings.enable_autoscaling else 'disabled'}")
+    logger.info(f"Health monitoring: {'enabled' if settings.enable_health_monitoring else 'disabled'}")
+    logger.info(f"Metrics: {'enabled' if settings.metrics_enabled else 'disabled'}")
+
     init_directories()
+
+    # Start autoscaler
+    manager = get_agent_manager()
+    if manager.autoscaler:
+        await manager.autoscaler.start()
+        logger.info("Autoscaler started")
+
+    # Start system metrics updates
+    import asyncio
+    async def update_metrics_loop():
+        while True:
+            try:
+                update_system_metrics()
+                await asyncio.sleep(10)  # Update every 10 seconds
+            except Exception as e:
+                logger.error(f"Error updating system metrics: {e}")
+
+    metrics_task = None
+    if settings.metrics_enabled:
+        metrics_task = asyncio.create_task(update_metrics_loop())
+        logger.info("System metrics monitoring started")
+
     yield
+
     # Shutdown
     logger.info("Shutting down Agent as a Service")
-    manager = get_agent_manager()
+
+    # Stop metrics task
+    if metrics_task:
+        metrics_task.cancel()
+        try:
+            await metrics_task
+        except asyncio.CancelledError:
+            pass
+
+    # Shutdown manager (includes autoscaler)
     await manager.shutdown_all()
+    logger.info("Shutdown complete")
 
 
 # Create FastAPI app
@@ -78,6 +123,31 @@ app.add_middleware(
 )
 
 
+# Add metrics tracking middleware
+@app.middleware("http")
+async def track_requests(request: Request, call_next):
+    """Track HTTP requests with metrics"""
+    start_time = time.time()
+
+    # Track rate limit exceeded
+    try:
+        response = await call_next(request)
+    except RateLimitExceeded:
+        track_rate_limit_exceeded(str(request.url.path))
+        raise
+
+    # Track request metrics
+    duration = time.time() - start_time
+    track_http_request(
+        method=request.method,
+        endpoint=request.url.path,
+        status=response.status_code,
+        duration=duration
+    )
+
+    return response
+
+
 @app.get("/")
 async def root():
     """Root endpoint"""
@@ -94,10 +164,57 @@ async def health_check():
     """Health check endpoint"""
     manager = get_agent_manager()
     agents = await manager.list_agents()
+
+    # Count agents by status
+    status_counts = {}
+    for agent_info in agents.values():
+        status = agent_info.status.value if hasattr(agent_info.status, 'value') else str(agent_info.status)
+        status_counts[status] = status_counts.get(status, 0) + 1
+
     return {
         "status": "healthy",
         "agents_count": len(agents),
         "max_agents": settings.max_agents,
+        "min_agents": settings.min_agents,
+        "agents_by_status": status_counts,
+        "autoscaling_enabled": settings.enable_autoscaling,
+        "health_monitoring_enabled": settings.enable_health_monitoring,
+    }
+
+
+@app.get("/metrics")
+async def metrics():
+    """Prometheus metrics endpoint"""
+    if not settings.metrics_enabled:
+        raise HTTPException(status_code=404, detail="Metrics not enabled")
+
+    return get_metrics()
+
+
+@app.get("/autoscaler/stats")
+async def autoscaler_stats():
+    """Get autoscaler statistics"""
+    manager = get_agent_manager()
+
+    if not manager.autoscaler:
+        return {
+            "enabled": False,
+            "message": "Autoscaling is not enabled"
+        }
+
+    stats = manager.autoscaler.get_stats()
+    agents = await manager.list_agents()
+
+    # Add current agent counts by status
+    status_counts = {}
+    for agent_info in agents.values():
+        status = agent_info.status.value if hasattr(agent_info.status, 'value') else str(agent_info.status)
+        status_counts[status] = status_counts.get(status, 0) + 1
+
+    return {
+        **stats,
+        "current_agents": len(agents),
+        "agents_by_status": status_counts,
     }
 
 
