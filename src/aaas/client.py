@@ -6,7 +6,7 @@ import httpx
 from typing import Dict, Optional, Any
 from datetime import datetime
 
-from .models import AgentConfig, AgentInfo, AgentResponse, CreateAgentRequest
+from .models import AgentConfig, AgentInfo, AgentResponse, CreateAgentRequest, AgentType
 
 
 class AgentClient:
@@ -38,7 +38,8 @@ class AgentClient:
 
     def deploy_agent(
         self,
-        template: str,
+        agent_type: Optional[AgentType] = None,
+        template: Optional[str] = None,
         config: Optional[Dict[str, Any]] = None,
         auto_start: bool = True,
     ) -> "DeployedAgent":
@@ -46,14 +47,25 @@ class AgentClient:
         Deploy a new agent
 
         Args:
-            template: Agent template or type
+            agent_type: Agent type (AgentType enum) - preferred method
+            template: Agent template or type (deprecated, use agent_type)
             config: Additional configuration options
             auto_start: Automatically start the agent
 
         Returns:
             DeployedAgent instance
         """
-        agent_config = AgentConfig(template=template, **(config or {}))
+        # Handle backward compatibility
+        if agent_type is None and template is None:
+            agent_type = AgentType.GENERAL
+
+        config_dict = config or {}
+        if agent_type:
+            config_dict["agent_type"] = agent_type
+        elif template:
+            config_dict["template"] = template
+
+        agent_config = AgentConfig(**config_dict)
         request = CreateAgentRequest(config=agent_config, auto_start=auto_start)
 
         response = self.client.post(
@@ -148,6 +160,40 @@ class AgentClient:
         response = self.client.get("/health")
         response.raise_for_status()
         return response.json()
+
+    def list_agent_types(self) -> Dict[str, Any]:
+        """
+        List all available agent types and their configurations
+
+        Returns:
+            Dictionary of agent type information
+        """
+        response = self.client.get(f"{self.api_prefix}/agent-types")
+        response.raise_for_status()
+        return response.json()
+
+    def quick_query(
+        self, message: str, agent_type: AgentType = AgentType.GENERAL, context: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """
+        Send a quick query without managing agent lifecycle
+
+        Args:
+            message: Message to send
+            agent_type: Type of agent to use for the query
+            context: Additional context
+
+        Returns:
+            Agent response text
+        """
+        response = self.client.post(
+            f"{self.api_prefix}/query",
+            params={"agent_type": agent_type.value},
+            json={"message": message, "context": context or {}},
+        )
+        response.raise_for_status()
+        result = response.json()
+        return result["response"]
 
     def close(self):
         """Close the client connection"""

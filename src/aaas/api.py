@@ -4,6 +4,7 @@ FastAPI REST API for Agent as a Service
 
 import logging
 from contextlib import asynccontextmanager
+from datetime import datetime
 from typing import Dict, List
 
 from fastapi import FastAPI, HTTPException, Depends, status
@@ -19,6 +20,8 @@ from .models import (
     CreateAgentResponse,
     MessageRequest,
     AgentStatus,
+    AgentType,
+    AGENT_TYPE_CONFIGS,
 )
 
 
@@ -243,6 +246,47 @@ async def delete_agent(agent_id: str, manager: AgentManager = Depends(get_agent_
         )
 
     return {"status": "success", "message": f"Agent {agent_id} deleted"}
+
+
+@app.get(f"{settings.api_prefix}/agent-types")
+async def list_agent_types():
+    """List all available agent types and their configurations"""
+    agent_types_info = {}
+    for agent_type in AgentType:
+        config = AGENT_TYPE_CONFIGS.get(agent_type, {})
+        agent_types_info[agent_type.value] = {
+            "type": agent_type.value,
+            "description": config.get("description", ""),
+            "allowed_tools": config.get("allowed_tools", []),
+            "permission_mode": config.get("permission_mode", "ask"),
+        }
+    return agent_types_info
+
+
+@app.post(f"{settings.api_prefix}/query", response_model=AgentResponse)
+async def quick_query(
+    request: MessageRequest,
+    agent_type: AgentType = AgentType.GENERAL,
+    manager: AgentManager = Depends(get_agent_manager),
+):
+    """
+    Quick query endpoint - creates a temporary agent, sends message, and returns response.
+    This is useful for one-off queries without needing to manage agent lifecycle.
+    """
+    try:
+        response = await manager.query_agent(request.message, agent_type)
+        return AgentResponse(
+            agent_id="quick-query",
+            response=response,
+            timestamp=datetime.utcnow(),
+            metadata={"agent_type": agent_type.value, "query_type": "quick"},
+        )
+    except Exception as e:
+        logger.error(f"Error in quick query: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to process query: {str(e)}",
+        )
 
 
 @app.exception_handler(Exception)
