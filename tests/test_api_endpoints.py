@@ -3,6 +3,7 @@ Tests for FastAPI API endpoints
 """
 
 import pytest
+import uuid
 from fastapi.testclient import TestClient
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime
@@ -16,6 +17,18 @@ from aaas.config import settings
 def client():
     """Create test client"""
     return TestClient(app)
+
+
+@pytest.fixture
+def test_agent_id():
+    """Valid UUID for testing"""
+    return "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
+
+
+@pytest.fixture
+def test_agent_id_2():
+    """Second valid UUID for testing"""
+    return "f9e8d7c6-b5a4-4321-9876-543210fedcba"
 
 
 @pytest.fixture
@@ -98,12 +111,12 @@ class TestAuthentication:
         assert response.status_code == 403
         assert "Invalid API key" in response.json()["detail"]
 
-    def test_create_agent_with_valid_api_key(self, client, setup_auth, mock_agent_manager, valid_api_key):
+    def test_create_agent_with_valid_api_key(self, client, setup_auth, mock_agent_manager, valid_api_key, test_agent_id):
         """Test creating agent with valid API key succeeds"""
         # Mock agent creation
         mock_agent = MagicMock()
         mock_agent.status = AgentStatus.RUNNING
-        mock_agent_manager.create_agent.return_value = "agent-123"
+        mock_agent_manager.create_agent.return_value = test_agent_id
         mock_agent_manager.get_agent.return_value = mock_agent
 
         response = client.post(
@@ -114,7 +127,7 @@ class TestAuthentication:
 
         assert response.status_code == 201
         data = response.json()
-        assert data["agent_id"] == "agent-123"
+        assert data["agent_id"] == test_agent_id
         assert data["status"] == "running"
 
     def test_list_agents_requires_auth(self, client, setup_auth):
@@ -229,55 +242,55 @@ class TestAgentCRUD:
         assert len(data) == 2
         assert "agent1" in data
 
-    def test_get_agent_found(self, client, setup_auth, mock_agent_manager, valid_api_key):
+    def test_get_agent_found(self, client, setup_auth, mock_agent_manager, valid_api_key, test_agent_id):
         """Test getting specific agent"""
         mock_agent = MagicMock()
         mock_agent.get_info.return_value = {
-            "id": "agent-123",
+            "id": test_agent_id,
             "status": "running",
             "agent_type": "general"
         }
         mock_agent_manager.get_agent.return_value = mock_agent
 
         response = client.get(
-            "/api/v1/agents/agent-123",
+            f"/api/v1/agents/{test_agent_id}",
             headers={"X-API-Key": valid_api_key}
         )
 
         assert response.status_code == 200
         data = response.json()
-        assert data["id"] == "agent-123"
+        assert data["id"] == test_agent_id
 
-    def test_get_agent_not_found(self, client, setup_auth, mock_agent_manager, valid_api_key):
+    def test_get_agent_not_found(self, client, setup_auth, mock_agent_manager, valid_api_key, test_agent_id_2):
         """Test getting non-existent agent returns 404"""
         mock_agent_manager.get_agent.return_value = None
 
         response = client.get(
-            "/api/v1/agents/nonexistent",
+            f"/api/v1/agents/{test_agent_id_2}",
             headers={"X-API-Key": valid_api_key}
         )
 
         assert response.status_code == 404
         assert "not found" in response.json()["detail"]
 
-    def test_delete_agent_success(self, client, setup_auth, mock_agent_manager, valid_api_key):
+    def test_delete_agent_success(self, client, setup_auth, mock_agent_manager, valid_api_key, test_agent_id):
         """Test deleting agent"""
         mock_agent_manager.delete_agent.return_value = True
 
         response = client.delete(
-            "/api/v1/agents/agent-123",
+            f"/api/v1/agents/{test_agent_id}",
             headers={"X-API-Key": valid_api_key}
         )
 
         assert response.status_code == 200
         assert "deleted" in response.json()["message"]
 
-    def test_delete_agent_not_found(self, client, setup_auth, mock_agent_manager, valid_api_key):
+    def test_delete_agent_not_found(self, client, setup_auth, mock_agent_manager, valid_api_key, test_agent_id_2):
         """Test deleting non-existent agent returns 404"""
         mock_agent_manager.delete_agent.return_value = False
 
         response = client.delete(
-            "/api/v1/agents/nonexistent",
+            f"/api/v1/agents/{test_agent_id_2}",
             headers={"X-API-Key": valid_api_key}
         )
 
@@ -287,46 +300,46 @@ class TestAgentCRUD:
 class TestAgentOperations:
     """Test agent operations (start, stop, send message)"""
 
-    def test_start_agent(self, client, setup_auth, mock_agent_manager, valid_api_key):
+    def test_start_agent(self, client, setup_auth, mock_agent_manager, valid_api_key, test_agent_id):
         """Test starting an agent"""
         mock_agent = AsyncMock()
         mock_agent.start.return_value = True
         mock_agent_manager.get_agent.return_value = mock_agent
 
         response = client.post(
-            "/api/v1/agents/agent-123/start",
+            f"/api/v1/agents/{test_agent_id}/start",
             headers={"X-API-Key": valid_api_key}
         )
 
         assert response.status_code == 200
         assert "started" in response.json()["message"]
 
-    def test_start_nonexistent_agent(self, client, setup_auth, mock_agent_manager, valid_api_key):
+    def test_start_nonexistent_agent(self, client, setup_auth, mock_agent_manager, valid_api_key, test_agent_id_2):
         """Test starting non-existent agent returns 404"""
         mock_agent_manager.get_agent.return_value = None
 
         response = client.post(
-            "/api/v1/agents/nonexistent/start",
+            f"/api/v1/agents/{test_agent_id_2}/start",
             headers={"X-API-Key": valid_api_key}
         )
 
         assert response.status_code == 404
 
-    def test_stop_agent(self, client, setup_auth, mock_agent_manager, valid_api_key):
+    def test_stop_agent(self, client, setup_auth, mock_agent_manager, valid_api_key, test_agent_id):
         """Test stopping an agent"""
         mock_agent = AsyncMock()
         mock_agent.stop.return_value = True
         mock_agent_manager.get_agent.return_value = mock_agent
 
         response = client.post(
-            "/api/v1/agents/agent-123/stop",
+            f"/api/v1/agents/{test_agent_id}/stop",
             headers={"X-API-Key": valid_api_key}
         )
 
         assert response.status_code == 200
         assert "stopped" in response.json()["message"]
 
-    def test_send_message_to_running_agent(self, client, setup_auth, mock_agent_manager, valid_api_key):
+    def test_send_message_to_running_agent(self, client, setup_auth, mock_agent_manager, valid_api_key, test_agent_id):
         """Test sending message to running agent"""
         mock_agent = AsyncMock()
         mock_agent.status = AgentStatus.RUNNING
@@ -336,24 +349,24 @@ class TestAgentOperations:
         mock_agent_manager.get_agent.return_value = mock_agent
 
         response = client.post(
-            "/api/v1/agents/agent-123/messages",
+            f"/api/v1/agents/{test_agent_id}/messages",
             json={"message": "Hello agent"},
             headers={"X-API-Key": valid_api_key}
         )
 
         assert response.status_code == 200
         data = response.json()
-        assert data["agent_id"] == "agent-123"
+        assert data["agent_id"] == test_agent_id
         assert data["response"] == "Agent response"
 
-    def test_send_message_to_stopped_agent(self, client, setup_auth, mock_agent_manager, valid_api_key):
+    def test_send_message_to_stopped_agent(self, client, setup_auth, mock_agent_manager, valid_api_key, test_agent_id):
         """Test sending message to stopped agent returns 400"""
         mock_agent = MagicMock()
         mock_agent.status = AgentStatus.STOPPED
         mock_agent_manager.get_agent.return_value = mock_agent
 
         response = client.post(
-            "/api/v1/agents/agent-123/messages",
+            f"/api/v1/agents/{test_agent_id}/messages",
             json={"message": "Hello"},
             headers={"X-API-Key": valid_api_key}
         )
@@ -361,7 +374,7 @@ class TestAgentOperations:
         assert response.status_code == 400
         assert "not running" in response.json()["detail"]
 
-    def test_send_message_with_context(self, client, setup_auth, mock_agent_manager, valid_api_key):
+    def test_send_message_with_context(self, client, setup_auth, mock_agent_manager, valid_api_key, test_agent_id):
         """Test sending message with context"""
         mock_agent = AsyncMock()
         mock_agent.status = AgentStatus.RUNNING
@@ -371,7 +384,7 @@ class TestAgentOperations:
         mock_agent_manager.get_agent.return_value = mock_agent
 
         response = client.post(
-            "/api/v1/agents/agent-123/messages",
+            f"/api/v1/agents/{test_agent_id}/messages",
             json={
                 "message": "Analyze this data",
                 "context": {"user_id": "user-456", "session": "sess-789"}
@@ -571,7 +584,7 @@ class TestErrorHandling:
 class TestIntegration:
     """Integration tests for complete workflows"""
 
-    def test_full_agent_lifecycle(self, client, setup_auth, mock_agent_manager, valid_api_key):
+    def test_full_agent_lifecycle(self, client, setup_auth, mock_agent_manager, valid_api_key, test_agent_id):
         """Test complete agent lifecycle: create → message → delete"""
         # Step 1: Create agent
         mock_agent = AsyncMock()
@@ -579,12 +592,12 @@ class TestIntegration:
         mock_agent.created_at = datetime.utcnow()
         mock_agent.messages_count = 0
         mock_agent.get_info.return_value = {
-            "id": "agent-123",
+            "id": test_agent_id,
             "status": "running",
             "agent_type": "general"
         }
 
-        mock_agent_manager.create_agent.return_value = "agent-123"
+        mock_agent_manager.create_agent.return_value = test_agent_id
         mock_agent_manager.get_agent.return_value = mock_agent
 
         create_response = client.post(
