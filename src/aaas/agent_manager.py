@@ -23,6 +23,16 @@ from .models import (
     PermissionMode,
     get_agent_config_for_type,
 )
+from .metrics import (
+    track_agent_creation,
+    track_agent_start,
+    track_agent_stop,
+    track_agent_deletion,
+    track_agent_error,
+    track_agent_recovery,
+    track_message,
+    update_active_agents,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -36,6 +46,7 @@ class ClaudeAgent:
         self.config = config
         self.status = AgentStatus.STOPPED
         self.created_at = datetime.utcnow()
+        self.last_activity = datetime.utcnow()
         self.client: Optional[ClaudeSDKClient] = None
         self.working_dir = config.working_directory or os.path.join(
             settings.default_working_dir, agent_id
@@ -43,6 +54,10 @@ class ClaudeAgent:
         self.messages_count = 0
         self._conversation_history: List[Any] = []
         self._client_task: Optional[asyncio.Task] = None
+        self._health_check_task: Optional[asyncio.Task] = None
+        self._idle_monitor_task: Optional[asyncio.Task] = None
+        self.recovery_attempts = 0
+        self.max_recovery_attempts = settings.max_recovery_attempts
 
     async def start(self) -> bool:
         """Start the Claude Agent"""
@@ -88,12 +103,26 @@ class ClaudeAgent:
             # Note: Client initialization happens, but we enter context when sending messages
 
             self.status = AgentStatus.RUNNING
+            self.last_activity = datetime.utcnow()
+
+            # Track metrics
+            track_agent_start(str(self.config.agent_type))
+
+            # Start health monitoring if enabled
+            if settings.enable_health_monitoring:
+                self._health_check_task = asyncio.create_task(self._health_check_loop())
+
+            # Start idle monitoring if enabled
+            if settings.enable_idle_shutdown:
+                self._idle_monitor_task = asyncio.create_task(self._idle_monitor_loop())
+
             logger.info(f"Agent {self.agent_id} started successfully")
             return True
 
         except Exception as e:
             logger.error(f"Failed to start agent {self.agent_id}: {e}", exc_info=True)
             self.status = AgentStatus.ERROR
+            track_agent_error("start_failure", str(self.config.agent_type))
             return False
 
     async def stop(self) -> bool:
@@ -101,6 +130,21 @@ class ClaudeAgent:
         try:
             if self.client:
                 logger.info(f"Stopping agent {self.agent_id}")
+
+                # Cancel monitoring tasks
+                if self._health_check_task and not self._health_check_task.done():
+                    self._health_check_task.cancel()
+                    try:
+                        await self._health_check_task
+                    except asyncio.CancelledError:
+                        pass
+
+                if self._idle_monitor_task and not self._idle_monitor_task.done():
+                    self._idle_monitor_task.cancel()
+                    try:
+                        await self._idle_monitor_task
+                    except asyncio.CancelledError:
+                        pass
 
                 # Cancel any ongoing tasks
                 if self._client_task and not self._client_task.done():
@@ -114,6 +158,7 @@ class ClaudeAgent:
                 self.client = None
 
                 self.status = AgentStatus.STOPPED
+                track_agent_stop()
                 logger.info(f"Agent {self.agent_id} stopped")
                 return True
 
@@ -121,12 +166,15 @@ class ClaudeAgent:
 
         except Exception as e:
             logger.error(f"Failed to stop agent {self.agent_id}: {e}")
+            track_agent_error("stop_failure", str(self.config.agent_type))
             return False
 
     async def send_message(self, message: str, context: Optional[Dict] = None) -> str:
         """Send a message to the Claude Agent"""
         if not self.client or self.status != AgentStatus.RUNNING:
             raise RuntimeError(f"Agent {self.agent_id} is not running")
+
+        start_time = datetime.utcnow()
 
         try:
             logger.info(f"Sending message to agent {self.agent_id}: {message[:100]}...")
@@ -155,19 +203,30 @@ class ClaudeAgent:
                         logger.debug(f"Agent {self.agent_id} response chunk: {text[:100]}...")
 
             self.messages_count += 1
+            self.last_activity = datetime.utcnow()
             self._conversation_history.append({
                 "user": message,
                 "assistant": response_text,
                 "timestamp": datetime.utcnow().isoformat()
             })
 
+            # Track metrics
+            duration = (datetime.utcnow() - start_time).total_seconds()
+            track_message(str(self.config.agent_type), "success", duration)
+
             logger.info(f"Agent {self.agent_id} responded successfully")
             return response_text if response_text else "No response received"
 
         except asyncio.TimeoutError:
+            duration = (datetime.utcnow() - start_time).total_seconds()
+            track_message(str(self.config.agent_type), "timeout", duration)
+            track_agent_error("message_timeout", str(self.config.agent_type))
             logger.error(f"Timeout waiting for response from agent {self.agent_id}")
             raise
         except Exception as e:
+            duration = (datetime.utcnow() - start_time).total_seconds()
+            track_message(str(self.config.agent_type), "error", duration)
+            track_agent_error("message_error", str(self.config.agent_type))
             logger.error(f"Error sending message to agent {self.agent_id}: {e}", exc_info=True)
             raise
 
@@ -216,6 +275,116 @@ class ClaudeAgent:
             messages_count=self.messages_count,
         )
 
+    async def _health_check_loop(self):
+        """Periodic health check for the agent"""
+        logger.info(f"Starting health check loop for agent {self.agent_id}")
+
+        while self.status == AgentStatus.RUNNING:
+            try:
+                await asyncio.sleep(settings.health_check_interval)
+
+                # Check if agent is responsive
+                is_healthy = await self._check_health()
+
+                if not is_healthy and self.status == AgentStatus.RUNNING:
+                    logger.warning(f"Agent {self.agent_id} failed health check")
+                    self.status = AgentStatus.ERROR
+                    track_agent_error("health_check_failed", str(self.config.agent_type))
+
+                    # Attempt recovery if enabled
+                    if settings.enable_auto_recovery:
+                        await self.recover()
+
+            except asyncio.CancelledError:
+                logger.info(f"Health check loop cancelled for agent {self.agent_id}")
+                break
+            except Exception as e:
+                logger.error(f"Error in health check loop for agent {self.agent_id}: {e}")
+
+    async def _check_health(self) -> bool:
+        """Check if agent is healthy"""
+        try:
+            # Basic health check - verify client exists and status is correct
+            if not self.client:
+                return False
+
+            if self.status != AgentStatus.RUNNING:
+                return False
+
+            # Check if agent is not stuck (has had recent activity or hasn't timed out)
+            idle_time = (datetime.utcnow() - self.last_activity).total_seconds()
+            if idle_time > settings.agent_timeout:
+                logger.warning(f"Agent {self.agent_id} exceeded timeout ({idle_time}s > {settings.agent_timeout}s)")
+                return False
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Health check failed for agent {self.agent_id}: {e}")
+            return False
+
+    async def _idle_monitor_loop(self):
+        """Monitor agent for idle timeout"""
+        logger.info(f"Starting idle monitor for agent {self.agent_id}")
+
+        while self.status == AgentStatus.RUNNING:
+            try:
+                await asyncio.sleep(60)  # Check every minute
+
+                idle_time = (datetime.utcnow() - self.last_activity).total_seconds()
+
+                if idle_time > settings.agent_idle_timeout:
+                    logger.info(f"Agent {self.agent_id} idle timeout ({idle_time}s), shutting down")
+                    self.status = AgentStatus.IDLE
+                    await self.stop()
+                    break
+
+            except asyncio.CancelledError:
+                logger.info(f"Idle monitor cancelled for agent {self.agent_id}")
+                break
+            except Exception as e:
+                logger.error(f"Error in idle monitor for agent {self.agent_id}: {e}")
+
+    async def recover(self) -> bool:
+        """Attempt to recover a failed agent"""
+        if self.recovery_attempts >= self.max_recovery_attempts:
+            logger.error(f"Agent {self.agent_id} exceeded max recovery attempts ({self.max_recovery_attempts})")
+            track_agent_recovery(str(self.config.agent_type), False)
+            return False
+
+        self.recovery_attempts += 1
+        self.status = AgentStatus.RECOVERING
+
+        logger.info(f"Attempting recovery for agent {self.agent_id} (attempt {self.recovery_attempts}/{self.max_recovery_attempts})")
+
+        try:
+            # Stop the agent
+            await self.stop()
+
+            # Wait with exponential backoff
+            backoff_time = settings.recovery_backoff_seconds * (2 ** (self.recovery_attempts - 1))
+            logger.info(f"Waiting {backoff_time}s before restart...")
+            await asyncio.sleep(backoff_time)
+
+            # Restart the agent
+            success = await self.start()
+
+            if success:
+                logger.info(f"Successfully recovered agent {self.agent_id}")
+                self.recovery_attempts = 0  # Reset counter on success
+                track_agent_recovery(str(self.config.agent_type), True)
+                return True
+            else:
+                logger.warning(f"Failed to recover agent {self.agent_id}")
+                track_agent_recovery(str(self.config.agent_type), False)
+                return False
+
+        except Exception as e:
+            logger.error(f"Error during recovery of agent {self.agent_id}: {e}", exc_info=True)
+            self.status = AgentStatus.ERROR
+            track_agent_recovery(str(self.config.agent_type), False)
+            return False
+
 
 class AgentManager:
     """Manages multiple Claude Agent instances"""
@@ -223,6 +392,12 @@ class AgentManager:
     def __init__(self):
         self.agents: Dict[str, ClaudeAgent] = {}
         self._lock = asyncio.Lock()
+        self.autoscaler = None
+
+        # Initialize autoscaler if enabled
+        if settings.enable_autoscaling:
+            from .autoscaler import AgentAutoscaler
+            self.autoscaler = AgentAutoscaler(self, settings)
 
     async def create_agent(self, config: AgentConfig, auto_start: bool = True) -> str:
         """Create a new agent instance"""
@@ -256,6 +431,13 @@ class AgentManager:
             if auto_start:
                 await agent.start()
 
+            # Track metrics
+            track_agent_creation(str(config.agent_type), auto_start)
+
+            # Track with autoscaler
+            if self.autoscaler:
+                self.autoscaler.track_request()
+
             logger.info(f"Created agent {agent_id} of type {config.agent_type}")
             return agent_id
 
@@ -279,12 +461,22 @@ class AgentManager:
                 await agent.stop()
 
             del self.agents[agent_id]
+
+            # Track metrics
+            track_agent_deletion("user_requested")
+
             logger.info(f"Deleted agent {agent_id}")
             return True
 
     async def shutdown_all(self):
         """Shutdown all agents"""
         logger.info("Shutting down all agents")
+
+        # Stop autoscaler first
+        if self.autoscaler:
+            await self.autoscaler.stop()
+
+        # Stop all agents
         tasks = [agent.stop() for agent in self.agents.values()]
         await asyncio.gather(*tasks, return_exceptions=True)
         self.agents.clear()

@@ -13,6 +13,8 @@ class AgentStatus(str, Enum):
     STARTING = "starting"
     RUNNING = "running"
     STOPPED = "stopped"
+    IDLE = "idle"
+    RECOVERING = "recovering"
     ERROR = "error"
     TERMINATED = "terminated"
 

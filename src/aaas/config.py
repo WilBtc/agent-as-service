@@ -23,7 +23,10 @@ class Settings(BaseSettings):
 
     # Agent Configuration
     max_agents: int = 100
+    min_agents: int = 1
     agent_timeout: int = 3600  # 1 hour
+    agent_idle_timeout: int = 300  # 5 minutes
+    max_turns: int = 25
     default_working_dir: str = "/tmp/aaas-agents"
 
     # Storage
@@ -40,6 +43,33 @@ class Settings(BaseSettings):
     rate_limit_enabled: bool = True
     rate_limit_per_minute: int = 60  # Max requests per minute per IP
     rate_limit_agent_creation: int = 10  # Max agent creations per minute
+
+    # Auto-scaling
+    enable_autoscaling: bool = True
+    scale_up_threshold: float = 0.8  # Scale at 80% capacity
+    scale_down_threshold: float = 0.3  # Scale down at 30% capacity
+
+    # Health Monitoring
+    enable_health_monitoring: bool = True
+    health_check_interval: int = 30  # seconds
+    enable_auto_recovery: bool = True
+    max_recovery_attempts: int = 3
+    recovery_backoff_seconds: int = 5
+
+    # Idle Management
+    enable_idle_shutdown: bool = True
+
+    # Monitoring & Metrics
+    metrics_enabled: bool = True
+    metrics_port: int = 9090
+    enable_structured_logging: bool = True
+
+    # Environment
+    environment: str = "production"  # dev, staging, production
+
+    # Resource Limits
+    max_memory_per_agent_mb: int = 512
+    max_cpu_per_agent_percent: float = 25.0
 
     # Logging
     log_level: str = "INFO"
