@@ -1,5 +1,5 @@
 """
-Tests for AgentManager and Agent classes
+Tests for AgentManager and ClaudeAgent classes
 """
 
 import pytest
@@ -7,7 +7,7 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch, call
 from datetime import datetime
 
-from aaas.agent_manager import AgentManager, Agent
+from aaas.agent_manager import AgentManager, ClaudeAgent
 from aaas.models import AgentConfig, AgentType, AgentStatus, PermissionMode
 from aaas.config import settings
 
@@ -35,7 +35,7 @@ class TestAgentManager:
         """Test creating general agent"""
         config = AgentConfig(agent_type=AgentType.GENERAL)
 
-        with patch.object(Agent, "start", return_value=True):
+        with patch.object(ClaudeAgent, "start", return_value=True):
             agent_id = await agent_manager.create_agent(config, auto_start=True)
 
         assert agent_id is not None
@@ -47,7 +47,7 @@ class TestAgentManager:
         """Test creating research agent"""
         config = AgentConfig(agent_type=AgentType.RESEARCH)
 
-        with patch.object(Agent, "start", return_value=True):
+        with patch.object(ClaudeAgent, "start", return_value=True):
             agent_id = await agent_manager.create_agent(config, auto_start=False)
 
         agent = await agent_manager.get_agent(agent_id)
@@ -61,7 +61,7 @@ class TestAgentManager:
         settings.max_agents = 2
 
         try:
-            with patch.object(Agent, "start", return_value=True):
+            with patch.object(ClaudeAgent, "start", return_value=True):
                 # Create first agent
                 agent1_id = await agent_manager.create_agent(
                     AgentConfig(agent_type=AgentType.GENERAL),
@@ -90,7 +90,7 @@ class TestAgentManager:
         """Test creating agent with auto_start=True"""
         config = AgentConfig(agent_type=AgentType.GENERAL)
 
-        with patch.object(Agent, "start", return_value=True) as mock_start:
+        with patch.object(ClaudeAgent, "start", return_value=True) as mock_start:
             agent_id = await agent_manager.create_agent(config, auto_start=True)
 
             # Verify start was called
@@ -102,7 +102,7 @@ class TestAgentManager:
         """Test creating agent with auto_start=False"""
         config = AgentConfig(agent_type=AgentType.GENERAL)
 
-        with patch.object(Agent, "start", return_value=True) as mock_start:
+        with patch.object(ClaudeAgent, "start", return_value=True) as mock_start:
             agent_id = await agent_manager.create_agent(config, auto_start=False)
 
             agent = await agent_manager.get_agent(agent_id)
@@ -115,7 +115,7 @@ class TestAgentManager:
         """Test getting existing agent"""
         config = AgentConfig(agent_type=AgentType.GENERAL)
 
-        with patch.object(Agent, "start", return_value=True):
+        with patch.object(ClaudeAgent, "start", return_value=True):
             agent_id = await agent_manager.create_agent(config, auto_start=False)
 
         agent = await agent_manager.get_agent(agent_id)
@@ -138,7 +138,7 @@ class TestAgentManager:
     @pytest.mark.asyncio
     async def test_list_agents_multiple(self, agent_manager):
         """Test listing multiple agents"""
-        with patch.object(Agent, "start", return_value=True):
+        with patch.object(ClaudeAgent, "start", return_value=True):
             agent1_id = await agent_manager.create_agent(
                 AgentConfig(agent_type=AgentType.GENERAL),
                 auto_start=False
@@ -158,10 +158,10 @@ class TestAgentManager:
         """Test deleting existing agent"""
         config = AgentConfig(agent_type=AgentType.GENERAL)
 
-        with patch.object(Agent, "start", return_value=True):
+        with patch.object(ClaudeAgent, "start", return_value=True):
             agent_id = await agent_manager.create_agent(config, auto_start=False)
 
-        with patch.object(Agent, "stop", return_value=True):
+        with patch.object(ClaudeAgent, "stop", return_value=True):
             success = await agent_manager.delete_agent(agent_id)
 
         assert success is True
@@ -178,17 +178,17 @@ class TestAgentManager:
         """Test that delete_agent stops the agent before deleting"""
         config = AgentConfig(agent_type=AgentType.GENERAL)
 
-        with patch.object(Agent, "start", return_value=True):
+        with patch.object(ClaudeAgent, "start", return_value=True):
             agent_id = await agent_manager.create_agent(config, auto_start=False)
 
-        with patch.object(Agent, "stop", return_value=True) as mock_stop:
+        with patch.object(ClaudeAgent, "stop", return_value=True) as mock_stop:
             await agent_manager.delete_agent(agent_id)
             mock_stop.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_shutdown_all(self, agent_manager):
         """Test shutting down all agents"""
-        with patch.object(Agent, "start", return_value=True):
+        with patch.object(ClaudeAgent, "start", return_value=True):
             agent1_id = await agent_manager.create_agent(
                 AgentConfig(agent_type=AgentType.GENERAL),
                 auto_start=False
@@ -198,7 +198,7 @@ class TestAgentManager:
                 auto_start=False
             )
 
-        with patch.object(Agent, "stop", return_value=True) as mock_stop:
+        with patch.object(ClaudeAgent, "stop", return_value=True) as mock_stop:
             await agent_manager.shutdown_all()
 
             # Verify stop was called for each agent
@@ -245,7 +245,7 @@ class TestAgentManager:
 
 
 class TestAgent:
-    """Test Agent class"""
+    """Test ClaudeAgent class"""
 
     @pytest.fixture
     def agent_config(self):
@@ -258,7 +258,7 @@ class TestAgent:
 
     def test_agent_initialization(self, agent_config):
         """Test agent initialization"""
-        agent = Agent("test-id", agent_config, "/tmp/test-agent")
+        agent = ClaudeAgent("test-id", agent_config)
 
         assert agent.id == "test-id"
         assert agent.config == agent_config
@@ -267,7 +267,7 @@ class TestAgent:
 
     def test_agent_get_info(self, agent_config):
         """Test agent get_info method"""
-        agent = Agent("test-id", agent_config, "/tmp/test-agent")
+        agent = ClaudeAgent("test-id", agent_config)
 
         info = agent.get_info()
 
@@ -279,7 +279,7 @@ class TestAgent:
     @pytest.mark.asyncio
     async def test_agent_start(self, agent_config, mock_claude_sdk):
         """Test starting an agent"""
-        agent = Agent("test-id", agent_config, "/tmp/test-agent")
+        agent = ClaudeAgent("test-id", agent_config)
 
         mock_claude_sdk.__aenter__.return_value = mock_claude_sdk
         mock_claude_sdk.__aexit__.return_value = None
@@ -292,7 +292,7 @@ class TestAgent:
     @pytest.mark.asyncio
     async def test_agent_start_already_running(self, agent_config):
         """Test starting already running agent"""
-        agent = Agent("test-id", agent_config, "/tmp/test-agent")
+        agent = ClaudeAgent("test-id", agent_config)
         agent.status = AgentStatus.RUNNING
 
         success = await agent.start()
@@ -303,7 +303,7 @@ class TestAgent:
     @pytest.mark.asyncio
     async def test_agent_stop(self, agent_config):
         """Test stopping an agent"""
-        agent = Agent("test-id", agent_config, "/tmp/test-agent")
+        agent = ClaudeAgent("test-id", agent_config)
         agent.status = AgentStatus.RUNNING
         agent.client = AsyncMock()
 
@@ -315,7 +315,7 @@ class TestAgent:
     @pytest.mark.asyncio
     async def test_agent_stop_already_stopped(self, agent_config):
         """Test stopping already stopped agent"""
-        agent = Agent("test-id", agent_config, "/tmp/test-agent")
+        agent = ClaudeAgent("test-id", agent_config)
         agent.status = AgentStatus.STOPPED
 
         success = await agent.stop()
@@ -325,7 +325,7 @@ class TestAgent:
     @pytest.mark.asyncio
     async def test_agent_send_message(self, agent_config, mock_claude_sdk):
         """Test sending message to agent"""
-        agent = Agent("test-id", agent_config, "/tmp/test-agent")
+        agent = ClaudeAgent("test-id", agent_config)
         agent.status = AgentStatus.RUNNING
         agent.client = mock_claude_sdk
 
@@ -347,7 +347,7 @@ class TestAgent:
     @pytest.mark.asyncio
     async def test_agent_send_message_with_context(self, agent_config, mock_claude_sdk):
         """Test sending message with context"""
-        agent = Agent("test-id", agent_config, "/tmp/test-agent")
+        agent = ClaudeAgent("test-id", agent_config)
         agent.status = AgentStatus.RUNNING
         agent.client = mock_claude_sdk
 
@@ -368,7 +368,7 @@ class TestAgent:
     @pytest.mark.asyncio
     async def test_agent_send_message_increments_count(self, agent_config, mock_claude_sdk):
         """Test that sending messages increments message count"""
-        agent = Agent("test-id", agent_config, "/tmp/test-agent")
+        agent = ClaudeAgent("test-id", agent_config)
         agent.status = AgentStatus.RUNNING
         agent.client = mock_claude_sdk
 
@@ -389,7 +389,7 @@ class TestAgent:
 
     def test_extract_text_from_message(self, agent_config):
         """Test extracting text from Claude SDK message"""
-        agent = Agent("test-id", agent_config, "/tmp/test-agent")
+        agent = ClaudeAgent("test-id", agent_config)
 
         # Mock message with text content
         message = MagicMock()
@@ -401,7 +401,7 @@ class TestAgent:
 
     def test_extract_text_from_message_empty(self, agent_config):
         """Test extracting text from message with no content"""
-        agent = Agent("test-id", agent_config, "/tmp/test-agent")
+        agent = ClaudeAgent("test-id", agent_config)
 
         # Mock message with no content
         message = MagicMock()
@@ -413,7 +413,7 @@ class TestAgent:
 
     def test_extract_text_from_message_multiple_parts(self, agent_config):
         """Test extracting text from message with multiple content parts"""
-        agent = Agent("test-id", agent_config, "/tmp/test-agent")
+        agent = ClaudeAgent("test-id", agent_config)
 
         # Mock message with multiple text parts
         message = MagicMock()
@@ -437,7 +437,7 @@ class TestAgentTypeConfigurations:
         """Test research agent gets correct tools"""
         config = AgentConfig(agent_type=AgentType.RESEARCH)
 
-        with patch.object(Agent, "start", return_value=True):
+        with patch.object(ClaudeAgent, "start", return_value=True):
             agent_id = await agent_manager.create_agent(config, auto_start=False)
 
         agent = await agent_manager.get_agent(agent_id)
@@ -449,7 +449,7 @@ class TestAgentTypeConfigurations:
         """Test customer support agent has restricted tools"""
         config = AgentConfig(agent_type=AgentType.CUSTOMER_SUPPORT)
 
-        with patch.object(Agent, "start", return_value=True):
+        with patch.object(ClaudeAgent, "start", return_value=True):
             agent_id = await agent_manager.create_agent(config, auto_start=False)
 
         agent = await agent_manager.get_agent(agent_id)
@@ -461,7 +461,7 @@ class TestAgentTypeConfigurations:
         """Test code agent has file manipulation tools"""
         config = AgentConfig(agent_type=AgentType.CODE)
 
-        with patch.object(Agent, "start", return_value=True):
+        with patch.object(ClaudeAgent, "start", return_value=True):
             agent_id = await agent_manager.create_agent(config, auto_start=False)
 
         agent = await agent_manager.get_agent(agent_id)
@@ -477,7 +477,7 @@ class TestAgentTypeConfigurations:
             permission_mode=PermissionMode.ACCEPT_ALL
         )
 
-        with patch.object(Agent, "start", return_value=True):
+        with patch.object(ClaudeAgent, "start", return_value=True):
             agent_id = await agent_manager.create_agent(config, auto_start=False)
 
         agent = await agent_manager.get_agent(agent_id)
@@ -491,7 +491,7 @@ class TestAgentErrorHandling:
     @pytest.mark.asyncio
     async def test_agent_start_failure(self, agent_config):
         """Test handling of agent start failure"""
-        agent = Agent("test-id", agent_config, "/tmp/test-agent")
+        agent = ClaudeAgent("test-id", agent_config)
 
         with patch("aaas.agent_manager.ClaudeSDKClient") as mock_sdk:
             mock_sdk.side_effect = Exception("Failed to start")
@@ -504,7 +504,7 @@ class TestAgentErrorHandling:
     @pytest.mark.asyncio
     async def test_agent_send_message_failure(self, agent_config, mock_claude_sdk):
         """Test handling of send message failure"""
-        agent = Agent("test-id", agent_config, "/tmp/test-agent")
+        agent = ClaudeAgent("test-id", agent_config)
         agent.status = AgentStatus.RUNNING
         agent.client = mock_claude_sdk
 
@@ -522,7 +522,7 @@ class TestAgentErrorHandling:
         # But test the manager's handling
         config = AgentConfig(agent_type=AgentType.GENERAL)
 
-        with patch.object(Agent, "__init__") as mock_init:
+        with patch.object(ClaudeAgent, "__init__") as mock_init:
             mock_init.side_effect = ValueError("Invalid config")
 
             with pytest.raises(ValueError):
@@ -537,7 +537,7 @@ class TestConcurrency:
         """Test creating multiple agents concurrently"""
         async def create_agent(agent_type):
             config = AgentConfig(agent_type=agent_type)
-            with patch.object(Agent, "start", return_value=True):
+            with patch.object(ClaudeAgent, "start", return_value=True):
                 return await agent_manager.create_agent(config, auto_start=False)
 
         # Create multiple agents concurrently
@@ -555,7 +555,7 @@ class TestConcurrency:
         """Test sending messages to multiple agents concurrently"""
         # Create multiple agents
         agents = [
-            Agent(f"agent-{i}", agent_config, f"/tmp/agent-{i}")
+            ClaudeAgent(f"agent-{i}", agent_config)
             for i in range(3)
         ]
 
