@@ -7,6 +7,41 @@ import asyncio
 from unittest.mock import MagicMock, AsyncMock, patch
 from typing import AsyncGenerator, Generator
 
+# Mock Claude SDK before importing app modules
+import sys
+from unittest.mock import MagicMock
+
+# Create mock for claude_agent_sdk
+mock_claude_sdk = MagicMock()
+
+# Mock ClaudeAgentOptions to return a MagicMock instance
+class MockClaudeAgentOptions:
+    def __init__(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+# Mock ClaudeSDKClient to return a proper mock instance
+class MockClaudeSDKClient:
+    def __init__(self, *args, **kwargs):
+        self.options = kwargs.get('options')
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args):
+        pass
+
+    async def aclose(self):
+        pass
+
+    def close(self):
+        pass
+
+mock_claude_sdk.ClaudeSDKClient = MockClaudeSDKClient
+mock_claude_sdk.ClaudeAgentOptions = MockClaudeAgentOptions
+mock_claude_sdk.query = AsyncMock(return_value="Mocked response")
+sys.modules['claude_agent_sdk'] = mock_claude_sdk
+
 from aaas.models import AgentConfig, AgentType, PermissionMode
 from aaas.config import settings
 

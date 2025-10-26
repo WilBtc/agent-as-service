@@ -554,11 +554,21 @@ class AgentManager:
         # Start agent outside of lock to avoid blocking other operations
         if auto_start:
             try:
-                # FIXED: Add timeout to prevent hanging on start
-                await asyncio.wait_for(
+                # FIXED: Add timeout to prevent hanging on start and check return value
+                start_result = await asyncio.wait_for(
                     agent.start(),
                     timeout=settings.agent_start_timeout
                 )
+
+                # Check if start() succeeded
+                if not start_result:
+                    # Remove from registry if start failed
+                    async with self._lock:
+                        self.agents.pop(agent_id, None)
+                    error_msg = f"Agent {agent_id} failed to start (check logs for details)"
+                    logger.error(error_msg)
+                    raise RuntimeError(error_msg)
+
             except asyncio.TimeoutError:
                 # Remove from registry if start times out
                 async with self._lock:
