@@ -505,17 +505,21 @@ class AgentManager:
 
         # Initialize MCP manager if enabled
         if settings.enable_mcp_servers:
-            from .mcp_manager import get_mcp_manager
-            # Pass environment variables for MCP servers
-            mcp_env = {
-                "GITHUB_PERSONAL_ACCESS_TOKEN": os.environ.get("GITHUB_PERSONAL_ACCESS_TOKEN", ""),
-                "BRAVE_API_KEY": os.environ.get("BRAVE_API_KEY", ""),
-                "SLACK_BOT_TOKEN": os.environ.get("SLACK_BOT_TOKEN", ""),
-                "SLACK_TEAM_ID": os.environ.get("SLACK_TEAM_ID", ""),
-                "POSTGRES_CONNECTION_STRING": os.environ.get("POSTGRES_CONNECTION_STRING", ""),
-            }
-            self.mcp_manager = get_mcp_manager(mcp_env)
-            logger.info("MCP server manager initialized")
+            try:
+                from .mcp_manager import get_mcp_manager
+                # Pass environment variables for MCP servers
+                mcp_env = {
+                    "GITHUB_PERSONAL_ACCESS_TOKEN": os.environ.get("GITHUB_PERSONAL_ACCESS_TOKEN", ""),
+                    "BRAVE_API_KEY": os.environ.get("BRAVE_API_KEY", ""),
+                    "SLACK_BOT_TOKEN": os.environ.get("SLACK_BOT_TOKEN", ""),
+                    "SLACK_TEAM_ID": os.environ.get("SLACK_TEAM_ID", ""),
+                    "POSTGRES_CONNECTION_STRING": os.environ.get("POSTGRES_CONNECTION_STRING", ""),
+                }
+                self.mcp_manager = get_mcp_manager(mcp_env)
+                logger.info("MCP server manager initialized")
+            except Exception as e:
+                logger.warning(f"Failed to initialize MCP manager: {e}. Continuing without MCP support.")
+                self.mcp_manager = None
 
     async def create_agent(self, config: AgentConfig, auto_start: bool = True) -> str:
         """Create a new agent instance"""

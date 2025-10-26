@@ -89,7 +89,25 @@ MCP servers extend Claude agents with additional tools and capabilities:
 - SQLite
 - Sequential Thinking
 
+## ⚠️ Current Status
+
+**MCP server provisioning is currently DISABLED by default** as subprocess management is not yet fully implemented (see `docs/MCP_2025_COMPLIANCE_AUDIT.md` for details).
+
+To enable MCP servers:
+```bash
+export AAAS_ENABLE_MCP_SERVERS=true
+```
+
+**Note**: The architecture and API are complete, but actual MCP server processes don't start yet. This will be implemented in Phase 1 of the compliance roadmap.
+
 ## Configuration
+
+### Enabling MCP Servers
+
+Set in `.env` or environment:
+```bash
+AAAS_ENABLE_MCP_SERVERS=true
+```
 
 ### Environment Variables
 
