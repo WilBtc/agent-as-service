@@ -57,6 +57,11 @@ class Settings(BaseSettings):
     max_recovery_attempts: int = 3
     recovery_backoff_seconds: int = 5
 
+    # MCP Server Configuration
+    enable_mcp_servers: bool = True  # Enable adaptive MCP server provisioning
+    mcp_server_idle_timeout: int = 300  # Idle timeout for MCP servers (5 minutes)
+    mcp_server_health_check_interval: int = 60  # Health check interval for MCP servers
+
     # Idle Management
     enable_idle_shutdown: bool = True
 

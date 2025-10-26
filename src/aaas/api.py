@@ -496,6 +496,82 @@ async def quick_query(
         )
 
 
+# MCP Server Management Endpoints
+
+@app.get(f"{settings.api_prefix}/mcp-servers")
+@limiter.limit(f"{settings.rate_limit_per_minute}/minute")
+async def list_mcp_servers(
+    request: Request,
+    manager: AgentManager = Depends(get_agent_manager),
+    api_key: str = Depends(verify_api_key),
+):
+    """List all running MCP servers (Protected: requires API key, rate limited)"""
+    if not manager.mcp_manager:
+        return {"servers": {}, "message": "MCP servers are not enabled"}
+
+    servers = await manager.mcp_manager.list_servers()
+    return {
+        "servers": servers,
+        "count": len(servers),
+    }
+
+
+@app.get(f"{settings.api_prefix}/agents/{{agent_id}}/mcp-servers")
+@limiter.limit(f"{settings.rate_limit_per_minute}/minute")
+async def get_agent_mcp_servers(
+    request: Request,
+    agent_id: str = Path(..., description="Agent UUID"),
+    manager: AgentManager = Depends(get_agent_manager),
+    api_key: str = Depends(verify_api_key),
+):
+    """Get MCP servers connected to a specific agent (Protected: requires API key, rate limited)"""
+    validate_agent_id(agent_id)
+
+    if not manager.mcp_manager:
+        return {"servers": [], "message": "MCP servers are not enabled"}
+
+    # Verify agent exists
+    agent = await manager.get_agent(agent_id)
+    if not agent:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Agent {agent_id} not found",
+        )
+
+    servers = await manager.mcp_manager.get_servers_for_agent(agent_id)
+    return {
+        "agent_id": agent_id,
+        "servers": servers,
+        "count": len(servers),
+    }
+
+
+@app.get(f"{settings.api_prefix}/mcp-server-types")
+@limiter.limit(f"{settings.rate_limit_per_minute}/minute")
+async def list_mcp_server_types(
+    request: Request,
+    api_key: str = Depends(verify_api_key_optional),
+):
+    """List available MCP server types and their requirements (Optional auth, rate limited)"""
+    from .mcp_models import MCP_SERVER_CATALOG, AGENT_MCP_REQUIREMENTS
+
+    server_types = {}
+    for server_type, config in MCP_SERVER_CATALOG.items():
+        server_types[server_type.value] = {
+            "command": config.command,
+            "args": config.args,
+            "shared": config.shared,
+            "max_connections": config.max_connections,
+            "required_env_vars": config.required_env_vars,
+            "optional": config.optional,
+        }
+
+    return {
+        "server_types": server_types,
+        "agent_requirements": AGENT_MCP_REQUIREMENTS,
+    }
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):
     """Global exception handler"""

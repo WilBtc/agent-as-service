@@ -496,11 +496,26 @@ class AgentManager:
         self.agents: Dict[str, ClaudeAgent] = {}
         self._lock = asyncio.Lock()
         self.autoscaler = None
+        self.mcp_manager = None
 
         # Initialize autoscaler if enabled
         if settings.enable_autoscaling:
             from .autoscaler import AgentAutoscaler
             self.autoscaler = AgentAutoscaler(self, settings)
+
+        # Initialize MCP manager if enabled
+        if settings.enable_mcp_servers:
+            from .mcp_manager import get_mcp_manager
+            # Pass environment variables for MCP servers
+            mcp_env = {
+                "GITHUB_PERSONAL_ACCESS_TOKEN": os.environ.get("GITHUB_PERSONAL_ACCESS_TOKEN", ""),
+                "BRAVE_API_KEY": os.environ.get("BRAVE_API_KEY", ""),
+                "SLACK_BOT_TOKEN": os.environ.get("SLACK_BOT_TOKEN", ""),
+                "SLACK_TEAM_ID": os.environ.get("SLACK_TEAM_ID", ""),
+                "POSTGRES_CONNECTION_STRING": os.environ.get("POSTGRES_CONNECTION_STRING", ""),
+            }
+            self.mcp_manager = get_mcp_manager(mcp_env)
+            logger.info("MCP server manager initialized")
 
     async def create_agent(self, config: AgentConfig, auto_start: bool = True) -> str:
         """Create a new agent instance"""
@@ -555,6 +570,19 @@ class AgentManager:
                 logger.error(f"Failed to start agent {agent_id}: {e}")
                 raise
 
+        # Provision MCP servers for the agent if enabled
+        if self.mcp_manager:
+            try:
+                mcp_servers = await self.mcp_manager.provision_for_agent(
+                    agent_id,
+                    str(config.agent_type)
+                )
+                logger.info(f"Provisioned {len(mcp_servers)} MCP servers for agent {agent_id}")
+            except Exception as e:
+                logger.error(f"Failed to provision MCP servers for agent {agent_id}: {e}")
+                # Don't fail agent creation if MCP provisioning fails
+                # The agent can still operate without MCP servers
+
         # Track metrics
         track_agent_creation(str(config.agent_type), auto_start)
 
@@ -586,11 +614,19 @@ class AgentManager:
 
             del self.agents[agent_id]
 
-            # Track metrics
-            track_agent_deletion("user_requested")
+        # Deprovision MCP servers after releasing lock
+        if self.mcp_manager:
+            try:
+                await self.mcp_manager.deprovision_for_agent(agent_id)
+                logger.info(f"Deprovisioned MCP servers for agent {agent_id}")
+            except Exception as e:
+                logger.error(f"Failed to deprovision MCP servers for agent {agent_id}: {e}")
 
-            logger.info(f"Deleted agent {agent_id}")
-            return True
+        # Track metrics
+        track_agent_deletion("user_requested")
+
+        logger.info(f"Deleted agent {agent_id}")
+        return True
 
     async def shutdown_all(self):
         """Shutdown all agents"""
@@ -604,6 +640,11 @@ class AgentManager:
         tasks = [agent.stop() for agent in self.agents.values()]
         await asyncio.gather(*tasks, return_exceptions=True)
         self.agents.clear()
+
+        # Shutdown all MCP servers
+        if self.mcp_manager:
+            await self.mcp_manager.shutdown_all()
+            logger.info("All MCP servers shut down")
 
     async def query_agent(self, prompt: str, agent_type: AgentType = AgentType.GENERAL) -> str:
         """Quick query using the SDK's query function - creates a temporary agent"""
