@@ -34,10 +34,17 @@ def test_agent_id_2():
 @pytest.fixture
 def mock_agent_manager():
     """Mock agent manager for testing"""
-    with patch("aaas.api.get_agent_manager") as mock:
-        manager = AsyncMock()
-        mock.return_value = manager
-        yield manager
+    from aaas.api import app, get_agent_manager
+
+    manager = AsyncMock()
+
+    # Override the dependency in FastAPI
+    app.dependency_overrides[get_agent_manager] = lambda: manager
+
+    yield manager
+
+    # Clean up after test
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture

@@ -37,9 +37,14 @@ class MockClaudeSDKClient:
     def close(self):
         pass
 
+# Mock query function as an async generator
+async def mock_query(prompt: str, **kwargs):
+    """Mock query function that yields a response"""
+    yield "Mocked response from query"
+
 mock_claude_sdk.ClaudeSDKClient = MockClaudeSDKClient
 mock_claude_sdk.ClaudeAgentOptions = MockClaudeAgentOptions
-mock_claude_sdk.query = AsyncMock(return_value="Mocked response")
+mock_claude_sdk.query = mock_query
 sys.modules['claude_agent_sdk'] = mock_claude_sdk
 
 from aaas.models import AgentConfig, AgentType, PermissionMode
@@ -75,6 +80,37 @@ def reset_settings():
             setattr(settings, attr, value)
         except:
             pass
+
+
+@pytest.fixture(autouse=True, scope="function")
+async def reset_agent_manager():
+    """Reset agent manager state before each test"""
+    # Import here to avoid circular imports
+    from aaas.agent_manager import agent_manager
+
+    # Clear all agents before test
+    agent_ids = list(agent_manager.agents.keys())
+    for agent_id in agent_ids:
+        try:
+            await agent_manager.delete_agent(agent_id)
+        except:
+            pass
+
+    # Clear the dict directly to be safe
+    agent_manager.agents.clear()
+
+    yield
+
+    # Clear all agents after test
+    agent_ids = list(agent_manager.agents.keys())
+    for agent_id in agent_ids:
+        try:
+            await agent_manager.delete_agent(agent_id)
+        except:
+            pass
+
+    # Clear the dict directly to be safe
+    agent_manager.agents.clear()
 
 
 @pytest.fixture
